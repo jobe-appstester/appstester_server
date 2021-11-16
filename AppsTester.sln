@@ -1,8 +1,20 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppsTester.Builder.Android", "AppsTester.Builder.Android\AppsTester.Builder.Android.csproj", "{898163DB-89DD-4E6D-B9A2-5AF52F304BE6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppsTester.Controller", "AppsTester.Controller\AppsTester.Controller.csproj", "{0550A386-72A6-4802-B0B2-632F292D802E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{898163DB-89DD-4E6D-B9A2-5AF52F304BE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{898163DB-89DD-4E6D-B9A2-5AF52F304BE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0550A386-72A6-4802-B0B2-632F292D802E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0550A386-72A6-4802-B0B2-632F292D802E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0550A386-72A6-4802-B0B2-632F292D802E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0550A386-72A6-4802-B0B2-632F292D802E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
