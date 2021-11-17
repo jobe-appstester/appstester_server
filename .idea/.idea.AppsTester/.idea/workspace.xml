@@ -10,27 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c9a206bb-0100-4cad-bff2-e1e5a3b08914" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/.idea.AppsTester/.idea/encodings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/.idea.AppsTester/.idea/indexLayout.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/.idea.AppsTester/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Builder.Android/AndroidApplicationTester.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Builder.Android/AndroidApplicationTestingBackgroundService.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Builder.Android/AppsTester.Builder.Android.csproj" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Builder.Android/Dockerfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Builder.Android/Program.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Builder.Android/appsettings.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/AppsTester.Controller.csproj" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/Controllers/WeatherForecastController.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/Program.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/Properties/launchSettings.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/Startup.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/Submissions/Submission.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/Submissions/SubmissionsController.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/WeatherForecast.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/appsettings.Development.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.Controller/appsettings.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/AppsTester.sln.DotSettings.user" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/AppsTester.sln" beforeDir="false" afterPath="$PROJECT_DIR$/AppsTester.sln" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.AppsTester/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.AppsTester/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -57,6 +37,7 @@
     <property name="node.js.detected.package.tslint" value="true" />
     <property name="node.js.selected.package.eslint" value="(autodetect)" />
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
+    <property name="nodejs_package_manager_path" value="npm" />
     <property name="rider.run.widget.enabled.cache" value="false" />
     <property name="vue.rearranger.settings.migration" value="true" />
   </component>
@@ -118,8 +99,16 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1637082819713</updated>
-      <workItem from="1637082822563" duration="2120000" />
+      <workItem from="1637082822563" duration="3002000" />
     </task>
+    <task id="LOCAL-00001" summary="Initial commit.">
+      <created>1637092427097</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1637092427097</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -141,5 +130,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
+    <MESSAGE value="Initial commit." />
+    <option name="LAST_COMMIT_MESSAGE" value="Initial commit." />
   </component>
 </project>

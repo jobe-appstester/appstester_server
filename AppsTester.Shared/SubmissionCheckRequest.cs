@@ -1,10 +1,11 @@
+using System;
 using System.Collections.Generic;
 
-namespace AppsTester.Controller.Submissions
+namespace AppsTester.Shared
 {
-    public sealed class Submission
+    public class SubmissionCheckRequest
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public Dictionary<string, object> Parameters { get; set; }
         public Dictionary<string, string> Files { get; set; }
     }

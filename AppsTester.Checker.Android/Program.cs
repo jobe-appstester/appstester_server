@@ -1,36 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using SharpAdbClient;
-using SharpAdbClient.DeviceCommands;
 
-namespace AppsTester.Builder.Android
+namespace AppsTester.Checker.Android
 {
-    class Program
+    internal static class Program
     {
-        static async Task Main()
+        private static async Task Main()
         {
             await Host
                 .CreateDefaultBuilder()
-                .ConfigureServices((context, collection) =>
+                .ConfigureServices((_, collection) =>
                 {
                     collection.AddHostedService<AndroidApplicationTestingBackgroundService>();
                     collection.AddHttpClient();
                     collection.AddSingleton<AndroidApplicationTester>();
                 })
                 .RunConsoleAsync();
-        }
-
-        static void Complete()
-        {
-
         }
     }
 }
