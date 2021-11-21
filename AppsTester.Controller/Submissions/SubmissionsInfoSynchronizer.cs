@@ -36,7 +36,7 @@ namespace AppsTester.Controller.Submissions
 
                 if (submissions == null || !submissions.Any())
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                    await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
                     continue;
                 }
 
@@ -45,7 +45,7 @@ namespace AppsTester.Controller.Submissions
 
                 if (dbContext.SubmissionChecks.Any(sc => sc.MoodleId == submissions.First()))
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                    await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
                     continue;
                 }
 
@@ -98,7 +98,7 @@ namespace AppsTester.Controller.Submissions
                     RabbitHutch.CreateBus($"host={_configuration["Rabbit:Host"]};port=5672;prefetchcount=1;username={_configuration["Rabbit:Username"]};password={_configuration["Rabbit:Password"]}");
                 await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, "submission_requests", cancellationToken: stoppingToken);
                 
-                await Task.Delay(TimeSpan.FromSeconds(5));
+                await Task.Delay(TimeSpan.FromSeconds(1));
             }
         }
     }
