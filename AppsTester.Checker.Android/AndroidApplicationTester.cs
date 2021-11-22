@@ -168,7 +168,7 @@ namespace AppsTester.Checker.Android
             var consoleOutputReceiver = new ConsoleOutputReceiver();
             _logger.LogInformation($"Started testing of Android application for event {submissionCheckRequest.Id}");
             await adbClient.ExecuteRemoteCommandAsync(
-                $"am instrument -r -W {submissionCheckRequest.Parameters["android_package_name"]}", deviceData,
+                $"am instrument -r -w {submissionCheckRequest.Parameters["android_package_name"]}", deviceData,
                 consoleOutputReceiver, Encoding.UTF8, cancellationToken);
             _logger.LogInformation($"Completed testing of Android application for event {submissionCheckRequest.Id}");
             var consoleOutput = consoleOutputReceiver.ToString();
