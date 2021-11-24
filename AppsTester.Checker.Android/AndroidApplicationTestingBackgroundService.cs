@@ -50,15 +50,14 @@ namespace AppsTester.Checker.Android
             var cancellationTokenSource = new CancellationTokenSource();
             stoppingToken.Register(() => cancellationTokenSource.Cancel());
             
-            var subscriptionResult = await rabbitConnection.SendReceive.ReceiveAsync<SubmissionCheckRequest>(
-                queue: "Checker.Android.Request",
-                onMessage: async request =>
+            var subscriptionResult = await rabbitConnection.PubSub.SubscribeAsync<SubmissionCheckRequest>(
+                "submission_requests", async request =>
                 {
                     try
                     {
                         var result =
                             await _androidApplicationTester.CheckSubmissionAsync(request, deviceData, stoppingToken);
-                        await rabbitConnection.SendReceive.SendAsync("Checker.Android.Results", result, stoppingToken);
+                        await rabbitConnection.PubSub.PublishAsync(result, "submission_results", stoppingToken);
                     }
                     catch (AdbException e) when (e.Message == "Device is offline")
                     {

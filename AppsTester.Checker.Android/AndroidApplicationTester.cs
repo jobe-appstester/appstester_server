@@ -64,7 +64,7 @@ namespace AppsTester.Checker.Android
                 OccurenceDateTime = DateTime.UtcNow
             };
             submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "checking_started" });
-            await rabbitConnection.SendReceive.SendAsync(queue: "Checker.Android.Status", submissionCheckStatusEvent, cancellationToken);
+            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
             
             var tempDirectory = CreateBuildDirectory(submissionCheckRequest);
             _logger.LogInformation($"Generated temporary directory: {tempDirectory}");
@@ -75,7 +75,7 @@ namespace AppsTester.Checker.Android
                 OccurenceDateTime = DateTime.UtcNow
             };
             submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "unzip_files" });
-            await rabbitConnection.SendReceive.SendAsync("Checker.Android.Status", submissionCheckStatusEvent, cancellationToken);
+            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
 
             try
             {
@@ -102,7 +102,7 @@ namespace AppsTester.Checker.Android
                 OccurenceDateTime = DateTime.UtcNow
             };
             submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "gradle_build" });
-            await rabbitConnection.SendReceive.SendAsync("Checker.Android.Status", submissionCheckStatusEvent, cancellationToken);
+            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
 
             var assembleDebugTaskResult = await ExecuteGradleTaskAsync(tempDirectory, "assembleDebug");
             if (assembleDebugTaskResult.Code != 0)
@@ -139,7 +139,7 @@ namespace AppsTester.Checker.Android
                 OccurenceDateTime = DateTime.UtcNow
             };
             submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "install_application" });
-            await rabbitConnection.SendReceive.SendAsync("Checker.Android.Status", submissionCheckStatusEvent, cancellationToken);
+            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
 
             await Task.Run(() =>
             {
@@ -163,7 +163,7 @@ namespace AppsTester.Checker.Android
                 OccurenceDateTime = DateTime.UtcNow
             };
             submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "test" });
-            await rabbitConnection.SendReceive.SendAsync("Checker.Android.Status", submissionCheckStatusEvent, cancellationToken);
+            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
 
             var consoleOutputReceiver = new ConsoleOutputReceiver();
             _logger.LogInformation($"Started testing of Android application for event {submissionCheckRequest.Id}");
@@ -341,13 +341,13 @@ namespace AppsTester.Checker.Android
             };
 
             process.Start();
+            
+            _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
 
             var readOutputTask = process.StandardOutput.ReadToEndAsync();
             var readErrorTask = process.StandardError.ReadToEndAsync();
 
             await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync());
-
-            _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
             
             return new GradleTaskResult
             {

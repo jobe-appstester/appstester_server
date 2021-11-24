@@ -96,7 +96,7 @@ namespace AppsTester.Controller.Submissions
                 
                 using var rabbitConnection =
                     RabbitHutch.CreateBus($"host={_configuration["Rabbit:Host"]};port=5672;prefetchcount=1;username={_configuration["Rabbit:Username"]};password={_configuration["Rabbit:Password"]}");
-                await rabbitConnection.SendReceive.SendAsync("Checker.Android.Request", submissionCheckRequest, stoppingToken);
+                await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, "submission_requests", cancellationToken: stoppingToken);
                 
                 await Task.Delay(TimeSpan.FromSeconds(1));
             }
