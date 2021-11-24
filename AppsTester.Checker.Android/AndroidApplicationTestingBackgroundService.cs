@@ -57,7 +57,7 @@ namespace AppsTester.Checker.Android
                     {
                         var result =
                             await _androidApplicationTester.CheckSubmissionAsync(request, deviceData, stoppingToken);
-                        await rabbitConnection.PubSub.PublishAsync(result, "submission_results", stoppingToken);
+                        await rabbitConnection.PubSub.PublishAsync(result, "", stoppingToken);
                     }
                     catch (AdbException e) when (e.Message == "Device is offline")
                     {
