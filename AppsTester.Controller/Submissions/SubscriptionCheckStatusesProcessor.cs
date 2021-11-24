@@ -4,12 +4,12 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Shared;
+using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Newtonsoft.Json;
 
 namespace AppsTester.Controller.Submissions
 {
@@ -17,17 +17,21 @@ namespace AppsTester.Controller.Submissions
     {
         private readonly IConfiguration _configuration;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IRabbitBusProvider _rabbitBusProvider;
 
-        public SubscriptionCheckStatusesProcessor(IConfiguration configuration, IServiceScopeFactory serviceScopeFactory)
+        public SubscriptionCheckStatusesProcessor(
+            IConfiguration configuration,
+            IServiceScopeFactory serviceScopeFactory,
+            IRabbitBusProvider rabbitBusProvider)
         {
             _configuration = configuration;
             _serviceScopeFactory = serviceScopeFactory;
+            _rabbitBusProvider = rabbitBusProvider;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var rabbitConnection =
-                RabbitHutch.CreateBus($"host={_configuration["Rabbit:Host"]};port=5672;prefetchcount=1;username={_configuration["Rabbit:Username"]};password={_configuration["Rabbit:Password"]}");
+            var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
             await rabbitConnection.PubSub.SubscribeAsync<SubmissionCheckStatusEvent>("", async statusEvent =>
             {

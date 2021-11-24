@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Controller.Files;
 using AppsTester.Shared;
+using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,11 +19,16 @@ namespace AppsTester.Controller.Submissions
     {
         private readonly IConfiguration _configuration;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IRabbitBusProvider _rabbitBusProvider;
 
-        public SubmissionsInfoSynchronizer(IConfiguration configuration, IServiceScopeFactory serviceScopeFactory)
+        public SubmissionsInfoSynchronizer(
+            IConfiguration configuration,
+            IServiceScopeFactory serviceScopeFactory,
+            IRabbitBusProvider rabbitBusProvider)
         {
             _configuration = configuration;
             _serviceScopeFactory = serviceScopeFactory;
+            _rabbitBusProvider = rabbitBusProvider;
         }
         
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -93,9 +99,8 @@ namespace AppsTester.Controller.Submissions
                 };
                 dbContext.SubmissionChecks.Add(submissionCheck);
                 await dbContext.SaveChangesAsync(stoppingToken);
-                
-                using var rabbitConnection =
-                    RabbitHutch.CreateBus($"host={_configuration["Rabbit:Host"]};port=5672;prefetchcount=1;username={_configuration["Rabbit:Username"]};password={_configuration["Rabbit:Password"]}");
+
+                var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
                 await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, "", cancellationToken: stoppingToken);
                 
                 await Task.Delay(TimeSpan.FromSeconds(1));

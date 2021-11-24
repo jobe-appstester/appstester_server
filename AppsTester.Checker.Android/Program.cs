@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
-using AppsTester.Checker.Android.RabbitMQ;
+using AppsTester.Shared.RabbitMq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -15,7 +15,7 @@ namespace AppsTester.Checker.Android
                 .ConfigureServices((_, collection) =>
                 {
                     collection.AddSingleton<IAdbClientProvider, AdbClientProvider>();
-                    collection.AddSingleton<IRabbitBusProvider, RabbitBusProvider>();
+                    collection.AddRabbitMq();
 
                     collection.AddHostedService<AndroidApplicationTestingBackgroundService>();
                     collection.AddHttpClient();
