@@ -49,29 +49,33 @@ namespace AppsTester.Checker.Android
 
             var cancellationTokenSource = new CancellationTokenSource();
             stoppingToken.Register(() => cancellationTokenSource.Cancel());
-            
-            var subscriptionResult = await rabbitConnection.PubSub.SubscribeAsync<SubmissionCheckRequest>(
-                "", async request =>
-                {
-                    try
+
+            var subscriptionResult = await rabbitConnection
+                .PubSub
+                .SubscribeAsync<SubmissionCheckRequest>(
+                    subscriptionId: "", 
+                    onMessage: async request =>
                     {
-                        var result =
-                            await _androidApplicationTester.CheckSubmissionAsync(request, deviceData, stoppingToken);
-                        await rabbitConnection.PubSub.PublishAsync(result, "", stoppingToken);
+                        try
+                        {
+                            var result =
+                                await _androidApplicationTester.CheckSubmissionAsync(request, deviceData, stoppingToken);
+                            await rabbitConnection.PubSub.PublishAsync(result, "", stoppingToken);
+                        }
+                        catch (AdbException e) when (e.Message == "Device is offline")
+                        {
+                            _activeDeviceSerials.Remove(deviceData.Serial);
+                            await rabbitConnection.Scheduler.FuturePublishAsync(request, TimeSpan.FromMinutes(1), cancellationToken: stoppingToken);
+                            
+                            cancellationTokenSource.Cancel();
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e);
+                            await rabbitConnection.Scheduler.FuturePublishAsync(request, TimeSpan.FromMinutes(1), cancellationToken: stoppingToken);
+                        }
                     }
-                    catch (AdbException e) when (e.Message == "Device is offline")
-                    {
-                        _activeDeviceSerials.Remove(deviceData.Serial);
-                        await rabbitConnection.Scheduler.FuturePublishAsync(request, TimeSpan.FromMinutes(1), cancellationToken: stoppingToken);
-                        
-                        cancellationTokenSource.Cancel();
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e);
-                        await rabbitConnection.Scheduler.FuturePublishAsync(request, TimeSpan.FromMinutes(1), cancellationToken: stoppingToken);
-                    }
-                });
+                );
 
             cancellationTokenSource.Token.Register(() => subscriptionResult?.Dispose());
 

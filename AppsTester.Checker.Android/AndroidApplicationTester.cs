@@ -341,13 +341,13 @@ namespace AppsTester.Checker.Android
             };
 
             process.Start();
-            
-            _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
 
             var readOutputTask = process.StandardOutput.ReadToEndAsync();
             var readErrorTask = process.StandardError.ReadToEndAsync();
 
             await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync());
+
+            _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
             
             return new GradleTaskResult
             {
