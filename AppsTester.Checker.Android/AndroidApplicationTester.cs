@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
+using AppsTester.Checker.Android.RabbitMQ;
 using AppsTester.Shared;
 using EasyNetQ;
 using ICSharpCode.SharpZipLib.Zip;
@@ -33,18 +34,21 @@ namespace AppsTester.Checker.Android
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IAdbClientProvider _adbClientProvider;
+        private readonly IRabbitBusProvider _rabbitBusProvider;
         private readonly ILogger<AndroidApplicationTester> _logger;
 
         public AndroidApplicationTester(
             IConfiguration configuration,
             ILogger<AndroidApplicationTester> logger,
             IHttpClientFactory httpClientFactory,
-            IAdbClientProvider adbClientProvider)
+            IAdbClientProvider adbClientProvider,
+            IRabbitBusProvider rabbitBusProvider)
         {
             _configuration = configuration;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
             _adbClientProvider = adbClientProvider;
+            _rabbitBusProvider = rabbitBusProvider;
         }
 
         public List<DeviceData> GetOnlineDevices()
@@ -58,8 +62,7 @@ namespace AppsTester.Checker.Android
             DeviceData deviceData,
             CancellationToken cancellationToken)
         {
-            using var rabbitConnection = 
-                RabbitHutch.CreateBus($"host={_configuration["Rabbit:Host"]};port=5672;prefetchcount=1;username={_configuration["Rabbit:Username"]};password={_configuration["Rabbit:Password"]}");
+            var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
             var submissionCheckStatusEvent = new SubmissionCheckStatusEvent
             {

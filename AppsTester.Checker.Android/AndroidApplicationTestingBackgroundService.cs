@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using AppsTester.Checker.Android.RabbitMQ;
 using AppsTester.Shared;
 using EasyNetQ;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using SharpAdbClient;
 using SharpAdbClient.Exceptions;
@@ -14,16 +14,17 @@ namespace AppsTester.Checker.Android
 {
     internal class AndroidApplicationTestingBackgroundService : BackgroundService
     {
+        private readonly IRabbitBusProvider _rabbitBusProvider;
         private readonly AndroidApplicationTester _androidApplicationTester;
-        private readonly IConfiguration _configuration;
 
         private readonly HashSet<string> _activeDeviceSerials = new();
 
-        public AndroidApplicationTestingBackgroundService(AndroidApplicationTester androidApplicationTester,
-            IConfiguration configuration)
+        public AndroidApplicationTestingBackgroundService(
+            AndroidApplicationTester androidApplicationTester,
+            IRabbitBusProvider rabbitBusProvider)
         {
             _androidApplicationTester = androidApplicationTester;
-            _configuration = configuration;
+            _rabbitBusProvider = rabbitBusProvider;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -44,8 +45,7 @@ namespace AppsTester.Checker.Android
 
         private async Task CheckSubmissionsAsync(DeviceData deviceData, CancellationToken stoppingToken)
         {
-            using var rabbitConnection = 
-                RabbitHutch.CreateBus($"host={_configuration["Rabbit:Host"]};port=5672;prefetchcount=1;username={_configuration["Rabbit:Username"]};password={_configuration["Rabbit:Password"]}");
+            using var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
             var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
 
