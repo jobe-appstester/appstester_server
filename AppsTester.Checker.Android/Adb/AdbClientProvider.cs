@@ -28,12 +28,15 @@ namespace AppsTester.Checker.Android.Adb
             if (_adbClient != null)
                 return _adbClient;
 
-            _logger.LogInformation($"Connecting to ADB server at {_configuration["Adb:Host"]}:5037");
-
             var dnsEndPoint = new DnsEndPoint(_configuration["Adb:Host"], port: 5037);
-            var adbClient = new AdbClient(dnsEndPoint, adbSocketFactory: point => new AdbSocket(point));
+            var adbClient = new AdbClient(dnsEndPoint, adbSocketFactory: Factories.AdbSocketFactory);
 
-            _logger.LogInformation($"Successfully connected to ADB server at {_configuration["Adb:Host"]}:5037");
+            _logger.LogInformation($"Connecting to ADB server at {_configuration["Adb:Host"]}:5037.");
+
+            var version = adbClient.GetAdbVersion();
+            
+            _logger.LogInformation(
+                $"Successfully connected to ADB server at {_configuration["Adb:Host"]}:5037. Version is {version}.");
 
             _adbClient = adbClient;
 
