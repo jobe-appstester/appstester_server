@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using AppsTester.Checker.Android.Adb;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -12,6 +13,7 @@ namespace AppsTester.Checker.Android
                 .CreateDefaultBuilder()
                 .ConfigureServices((_, collection) =>
                 {
+                    collection.AddSingleton<IAdbClientProvider, AdbClientProvider>();
                     collection.AddHostedService<AndroidApplicationTestingBackgroundService>();
                     collection.AddHttpClient();
                     collection.AddSingleton<AndroidApplicationTester>();

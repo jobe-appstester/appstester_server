@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using AppsTester.Checker.Android.Adb;
 using AppsTester.Shared;
 using EasyNetQ;
 using ICSharpCode.SharpZipLib.Zip;
@@ -32,21 +32,24 @@ namespace AppsTester.Checker.Android
     {
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IAdbClientProvider _adbClientProvider;
         private readonly ILogger<AndroidApplicationTester> _logger;
 
         public AndroidApplicationTester(
             IConfiguration configuration,
             ILogger<AndroidApplicationTester> logger,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            IAdbClientProvider adbClientProvider)
         {
             _configuration = configuration;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
+            _adbClientProvider = adbClientProvider;
         }
 
         public List<DeviceData> GetOnlineDevices()
         {
-            var adbClient = CreateAdbClient();
+            var adbClient = _adbClientProvider.GetAdbClient();
             return adbClient.GetDevices().Where(d => d.State == DeviceState.Online).ToList();
         }
 
@@ -132,7 +135,7 @@ namespace AppsTester.Checker.Android
                 };
             }
 
-            var adbClient = CreateAdbClient();
+            var adbClient = _adbClientProvider.GetAdbClient();
             
             submissionCheckStatusEvent = new SubmissionCheckStatusEvent {
                 SubmissionId = submissionCheckRequest.Id,
@@ -290,15 +293,6 @@ namespace AppsTester.Checker.Android
                     })
                     .ToList()
             };
-        }
-
-        private AdbClient CreateAdbClient()
-        {
-            _logger.LogInformation($"Connecting to ADB server at {_configuration["Adb:Host"]}:5037");
-            var adbClient = new AdbClient(new DnsEndPoint(_configuration["Adb:Host"], 5037),
-                point => new AdbSocket(point));
-            _logger.LogInformation($"Successfully connected to ADB server at {_configuration["Adb:Host"]}:5037");
-            return adbClient;
         }
 
         private async Task<GradleTaskResult> ExecuteGradleTaskAsync(string tempDirectory, string taskName)

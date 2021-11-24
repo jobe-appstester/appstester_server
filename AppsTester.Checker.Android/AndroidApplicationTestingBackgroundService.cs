@@ -47,8 +47,7 @@ namespace AppsTester.Checker.Android
             using var rabbitConnection = 
                 RabbitHutch.CreateBus($"host={_configuration["Rabbit:Host"]};port=5672;prefetchcount=1;username={_configuration["Rabbit:Username"]};password={_configuration["Rabbit:Password"]}");
 
-            var cancellationTokenSource = new CancellationTokenSource();
-            stoppingToken.Register(() => cancellationTokenSource.Cancel());
+            var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
 
             var subscriptionResult = await rabbitConnection
                 .PubSub
