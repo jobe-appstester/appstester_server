@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using AppsTester.Checker.Android.Adb;
 using AppsTester.Shared;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
@@ -16,22 +17,25 @@ namespace AppsTester.Checker.Android
     {
         private readonly IRabbitBusProvider _rabbitBusProvider;
         private readonly AndroidApplicationTester _androidApplicationTester;
+        private readonly IAdbDevicesProvider _adbDevicesProvider;
 
         private readonly HashSet<string> _activeDeviceSerials = new();
 
         public AndroidApplicationTestingBackgroundService(
             AndroidApplicationTester androidApplicationTester,
-            IRabbitBusProvider rabbitBusProvider)
+            IRabbitBusProvider rabbitBusProvider,
+            IAdbDevicesProvider adbDevicesProvider)
         {
             _androidApplicationTester = androidApplicationTester;
             _rabbitBusProvider = rabbitBusProvider;
+            _adbDevicesProvider = adbDevicesProvider;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                var devices = _androidApplicationTester.GetOnlineDevices();
+                var devices = _adbDevicesProvider.GetOnlineDevices();
 
                 foreach (var deviceData in devices.Where(d => !_activeDeviceSerials.Contains(d.Serial)))
                 {

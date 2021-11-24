@@ -51,12 +51,6 @@ namespace AppsTester.Checker.Android
             _rabbitBusProvider = rabbitBusProvider;
         }
 
-        public List<DeviceData> GetOnlineDevices()
-        {
-            var adbClient = _adbClientProvider.GetAdbClient();
-            return adbClient.GetDevices().Where(d => d.State == DeviceState.Online).ToList();
-        }
-
         public async Task<SubmissionCheckResult> CheckSubmissionAsync(
             SubmissionCheckRequest submissionCheckRequest,
             DeviceData deviceData,

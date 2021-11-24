@@ -15,6 +15,8 @@ namespace AppsTester.Checker.Android
                 .ConfigureServices((_, collection) =>
                 {
                     collection.AddSingleton<IAdbClientProvider, AdbClientProvider>();
+                    collection.AddTransient<IAdbDevicesProvider, AdbDevicesProvider>();
+
                     collection.AddRabbitMq();
 
                     collection.AddHostedService<AndroidApplicationTestingBackgroundService>();
