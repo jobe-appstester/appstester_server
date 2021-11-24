@@ -2,6 +2,7 @@ using System;
 using AppsTester.Controller.Files;
 using AppsTester.Controller.Submissions;
 using AppsTester.Shared;
+using AppsTester.Shared.RabbitMq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,9 @@ namespace AppsTester.Controller
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+
+            services.AddRabbitMq();
+            
             services.AddSingleton(_ => new FileCache("apps-tester.controller", TimeSpan.FromDays(7)));
             services.AddDbContext<ApplicationDbContext>(options => 
                 options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));

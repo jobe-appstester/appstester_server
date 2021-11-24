@@ -1,9 +1,9 @@
 using EasyNetQ;
 using Microsoft.Extensions.Configuration;
 
-namespace AppsTester.Checker.Android.RabbitMQ
+namespace AppsTester.Shared.RabbitMq
 {
-    internal interface IRabbitBusProvider
+    public interface IRabbitBusProvider
     {
         IBus GetRabbitBus();
     }
