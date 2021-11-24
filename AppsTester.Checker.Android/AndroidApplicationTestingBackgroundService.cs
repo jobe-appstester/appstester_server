@@ -51,7 +51,7 @@ namespace AppsTester.Checker.Android
             stoppingToken.Register(() => cancellationTokenSource.Cancel());
             
             var subscriptionResult = await rabbitConnection.PubSub.SubscribeAsync<SubmissionCheckRequest>(
-                "submission_requests", async request =>
+                "", async request =>
                 {
                     try
                     {

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using EasyNetQ;
 
 namespace AppsTester.Shared
 {
+    [Queue(queueName: "Submissions.CheckResults")]
     public class SubmissionCheckResult
     {
         public Guid Id { get; set; }

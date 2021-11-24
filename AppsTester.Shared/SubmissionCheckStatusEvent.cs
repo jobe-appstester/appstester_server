@@ -1,7 +1,9 @@
+using EasyNetQ;
 using Newtonsoft.Json;
 
 namespace AppsTester.Shared
 {
+    [Queue(queueName: "Submissions.CheckStatusEvents")]
     public class SubmissionCheckStatusEvent : SubmissionCheckEvent
     {
         public string SerializedStatus { get; set; }
