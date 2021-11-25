@@ -35,24 +35,7 @@ namespace AppsTester.Checker.Android.Gradle
         {
             _logger.LogInformation($"Started gradle task \"{taskName}\" in directory: {tempDirectory}");
 
-            try
-            {
-                // ReSharper disable once ObjectCreationAsStatement
-                new UnixFileInfo(Path.Join(tempDirectory, "gradlew"))
-                {
-                    FileAccessPermissions = FileAccessPermissions.AllPermissions
-                };
-            }
-            catch (Exception exception)
-            {
-                _logger.LogError(exception, $"Error happened during execution of Gradle task {taskName}");
-
-                return new GradleTaskExecutionResult(
-                    ExitCode: -1,
-                    StandardOutput: "",
-                    StandardError: "Invalid ZIP file structure"
-                );
-            }
+            EnsureGradlewExecutionRights(tempDirectory, taskName);
 
             var process = new Process
             {
@@ -86,6 +69,22 @@ namespace AppsTester.Checker.Android.Gradle
                 StandardError: readErrorTask.Result,
                 StandardOutput: readOutputTask.Result
             );
+        }
+
+        private void EnsureGradlewExecutionRights(string tempDirectory, string taskName)
+        {
+            try
+            {
+                // ReSharper disable once ObjectCreationAsStatement
+                new UnixFileInfo(Path.Join(tempDirectory, "gradlew"))
+                {
+                    FileAccessPermissions = FileAccessPermissions.AllPermissions
+                };
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, $"Error happened during execution of Gradle task {taskName}");
+            }
         }
     }
 }
