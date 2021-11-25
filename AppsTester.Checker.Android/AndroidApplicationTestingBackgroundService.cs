@@ -37,11 +37,14 @@ namespace AppsTester.Checker.Android
             {
                 var devices = _adbDevicesProvider.GetOnlineDevices();
 
-                foreach (var deviceData in devices.Where(d => !_activeDeviceSerials.Contains(d.Serial)))
+                lock (_activeDeviceSerials)
                 {
-                    _activeDeviceSerials.Add(deviceData.Serial);
+                    foreach (var deviceData in devices.Where(d => !_activeDeviceSerials.Contains(d.Serial)))
+                    {
+                        _activeDeviceSerials.Add(deviceData.Serial);
 
-                    Task.Run(() => CheckSubmissionsAsync(deviceData, stoppingToken), stoppingToken);
+                        Task.Run(() => CheckSubmissionsAsync(deviceData, stoppingToken), stoppingToken);
+                    }
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
@@ -62,20 +65,27 @@ namespace AppsTester.Checker.Android
                         try
                         {
                             var result =
-                                await _androidApplicationTester.CheckSubmissionAsync(request, deviceData, stoppingToken);
+                                await _androidApplicationTester.CheckSubmissionAsync(request, deviceData,
+                                    stoppingToken);
                             await rabbitConnection.PubSub.PublishAsync(result, "", stoppingToken);
                         }
                         catch (AdbException e) when (e.Message == "Device is offline")
                         {
-                            _activeDeviceSerials.Remove(deviceData.Serial);
-                            await rabbitConnection.Scheduler.FuturePublishAsync(request, TimeSpan.FromMinutes(1), cancellationToken: stoppingToken);
-                            
+                            lock (_activeDeviceSerials)
+                            {
+                                _activeDeviceSerials.Remove(deviceData.Serial);
+                            }
+
+                            await rabbitConnection.Scheduler.FuturePublishAsync(request, TimeSpan.FromMinutes(1),
+                                cancellationToken: stoppingToken);
+
                             cancellationTokenSource.Cancel();
                         }
                         catch (Exception e)
                         {
                             Console.WriteLine(e);
-                            await rabbitConnection.Scheduler.FuturePublishAsync(request, TimeSpan.FromMinutes(1), cancellationToken: stoppingToken);
+                            await rabbitConnection.Scheduler.FuturePublishAsync(request, TimeSpan.FromMinutes(1),
+                                cancellationToken: stoppingToken);
                         }
                     }
                 );
