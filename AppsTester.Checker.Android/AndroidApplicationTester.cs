@@ -89,7 +89,7 @@ namespace AppsTester.Checker.Android
 
             var assembleDebugAndroidTestResult =
                 await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebugAndroidTest");
-            if (assembleDebugAndroidTestResult.IsSuccessful)
+            if (!assembleDebugAndroidTestResult.IsSuccessful)
                 return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
 
             await SetStatusAsync(submissionCheckRequest, "install_application");
