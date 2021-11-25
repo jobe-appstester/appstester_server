@@ -40,18 +40,18 @@ namespace AppsTester.Checker.Android
                 foreach (var deviceData in devices.Where(d => !_activeDeviceSerials.Contains(d.Serial)))
                 {
                     _activeDeviceSerials.Add(deviceData.Serial);
-                    CheckSubmissionsAsync(deviceData, stoppingToken);
+
+                    Task.Run(() => CheckSubmissionsAsync(deviceData, stoppingToken), stoppingToken);
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
         }
 
         private async Task CheckSubmissionsAsync(DeviceData deviceData, CancellationToken stoppingToken)
         {
             using var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
-
-            var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
 
             var subscriptionResult = await rabbitConnection
                 .PubSub
