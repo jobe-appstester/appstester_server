@@ -116,6 +116,19 @@ namespace AppsTester.Checker.Android
             submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "gradle_build" });
             await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
 
+            if (!_gradleRunner.IsGradlewInstalledInDirectory(tempDirectory))
+            {
+                return new SubmissionCheckResult
+                {
+                    Id = submissionCheckRequest.Id,
+                    Grade = 0,
+                    GradleError = "Can't find Gradlew launcher. Please, check template and submission files.",
+                    ResultCode = SubmissionCheckResultCode.CompilationError,
+                    TestResults = new List<SubmissionCheckTestResult>(),
+                    TotalGrade = 0
+                };
+            }
+
             var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebug");
             if (assembleDebugTaskResult.ExitCode != 0)
             {

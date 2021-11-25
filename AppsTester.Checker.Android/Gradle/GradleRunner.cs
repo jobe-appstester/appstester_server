@@ -10,6 +10,8 @@ namespace AppsTester.Checker.Android.Gradle
 {
     internal interface IGradleRunner
     {
+        bool IsGradlewInstalledInDirectory(string tempDirectory);
+        
         Task<GradleTaskExecutionResult> ExecuteTaskAsync(string tempDirectory, string taskName);
     }
     
@@ -22,6 +24,11 @@ namespace AppsTester.Checker.Android.Gradle
         {
             _logger = logger;
             _configuration = configuration;
+        }
+
+        public bool IsGradlewInstalledInDirectory(string tempDirectory)
+        {
+            return File.Exists(Path.Join(tempDirectory, "gradlew"));
         }
 
         public async Task<GradleTaskExecutionResult> ExecuteTaskAsync(string tempDirectory, string taskName)
