@@ -55,29 +55,15 @@ namespace AppsTester.Checker.Android
             CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(submissionCheckRequest.Parameters["android_package_name"] as string))
-                return ValidationErrorResult(submissionCheckRequest,
+                return ValidationResult(submissionCheckRequest,
                     "Invalid Android Package Name. Please, check parameter's value in question settings.");
 
-            var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
-
-            var submissionCheckStatusEvent = new SubmissionCheckStatusEvent
-            {
-                SubmissionId = submissionCheckRequest.Id,
-                OccurenceDateTime = DateTime.UtcNow
-            };
-            submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "checking_started" });
-            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
+            await SetStatusAsync(submissionCheckRequest, "checking_started");
 
             var tempDirectory = CreateBuildDirectory(submissionCheckRequest);
             _logger.LogInformation($"Generated temporary directory: {tempDirectory}");
 
-            submissionCheckStatusEvent = new SubmissionCheckStatusEvent
-            {
-                SubmissionId = submissionCheckRequest.Id,
-                OccurenceDateTime = DateTime.UtcNow
-            };
-            submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "unzip_files" });
-            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
+            await SetStatusAsync(submissionCheckRequest, "unzip_files");
 
             try
             {
@@ -86,21 +72,15 @@ namespace AppsTester.Checker.Android
             catch (ZipException e)
             {
                 Console.WriteLine(e);
-                return ValidationErrorResult(submissionCheckRequest, "Cannot extract submitted file.");
+                return ValidationResult(submissionCheckRequest, "Cannot extract submitted file.");
             }
 
             await ExtractTemplateFilesAsync(submissionCheckRequest, tempDirectory);
 
-            submissionCheckStatusEvent = new SubmissionCheckStatusEvent
-            {
-                SubmissionId = submissionCheckRequest.Id,
-                OccurenceDateTime = DateTime.UtcNow
-            };
-            submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "gradle_build" });
-            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
+            await SetStatusAsync(submissionCheckRequest, "gradle_build");
 
             if (!_gradleRunner.IsGradlewInstalledInDirectory(tempDirectory))
-                return ValidationErrorResult(submissionCheckRequest,
+                return ValidationResult(submissionCheckRequest,
                     "Can't find Gradlew launcher. Please, check template and submission files.");
 
             var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebug");
@@ -112,16 +92,9 @@ namespace AppsTester.Checker.Android
             if (assembleDebugAndroidTestResult.IsSuccessful)
                 return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
 
+            await SetStatusAsync(submissionCheckRequest, "install_application");
+
             var adbClient = _adbClientProvider.GetAdbClient();
-
-            submissionCheckStatusEvent = new SubmissionCheckStatusEvent
-            {
-                SubmissionId = submissionCheckRequest.Id,
-                OccurenceDateTime = DateTime.UtcNow
-            };
-            submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "install_application" });
-            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
-
             var packageManager = new PackageManager(adbClient, deviceData);
 
             foreach (var package in packageManager.Packages.Where(p => p.Key.Contains("profexam")))
@@ -136,13 +109,7 @@ namespace AppsTester.Checker.Android
             packageManager.InstallPackage(apkFilePath2, true);
             _logger.LogInformation($"Reinstalled androidTest application in directory: {tempDirectory}");
 
-            submissionCheckStatusEvent = new SubmissionCheckStatusEvent
-            {
-                SubmissionId = submissionCheckRequest.Id,
-                OccurenceDateTime = DateTime.UtcNow
-            };
-            submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "test" });
-            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
+            await SetStatusAsync(submissionCheckRequest, "test");
 
             var consoleOutputReceiver = new ConsoleOutputReceiver();
             _logger.LogInformation($"Started testing of Android application for event {submissionCheckRequest.Id}");
@@ -157,7 +124,21 @@ namespace AppsTester.Checker.Android
             return _instrumentationsOutputParser.Parse(submissionCheckRequest, consoleOutput);
         }
 
-        private SubmissionCheckResult ValidationErrorResult(
+        private async Task SetStatusAsync(SubmissionCheckRequest submissionCheckRequest, string status)
+        {
+            var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
+
+            var submissionCheckStatusEvent = new SubmissionCheckStatusEvent
+            {
+                SubmissionId = submissionCheckRequest.Id,
+                OccurenceDateTime = DateTime.UtcNow
+            };
+            submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = status });
+
+            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
+        }
+
+        private SubmissionCheckResult ValidationResult(
             SubmissionCheckRequest submissionCheckRequest, string validationMessage)
         {
             return new SubmissionCheckResult
