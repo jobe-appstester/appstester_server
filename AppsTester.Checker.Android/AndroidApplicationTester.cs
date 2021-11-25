@@ -54,6 +54,19 @@ namespace AppsTester.Checker.Android
             DeviceData deviceData,
             CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(submissionCheckRequest.Parameters["android_package_name"] as string))
+            {
+                return new SubmissionCheckResult
+                {
+                    Id = submissionCheckRequest.Id,
+                    Grade = 0,
+                    GradleError = "Invalid Android Package Name. Please, check parameter's value in question settings.",
+                    ResultCode = SubmissionCheckResultCode.CompilationError,
+                    TestResults = new List<SubmissionCheckTestResult>(),
+                    TotalGrade = 0
+                };
+            }
+
             var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
             var submissionCheckStatusEvent = new SubmissionCheckStatusEvent
@@ -63,10 +76,10 @@ namespace AppsTester.Checker.Android
             };
             submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "checking_started" });
             await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
-            
+
             var tempDirectory = CreateBuildDirectory(submissionCheckRequest);
             _logger.LogInformation($"Generated temporary directory: {tempDirectory}");
-            
+
             submissionCheckStatusEvent = new SubmissionCheckStatusEvent
             {
                 SubmissionId = submissionCheckRequest.Id,
@@ -92,10 +105,11 @@ namespace AppsTester.Checker.Android
                     TotalGrade = 0
                 };
             }
-            
+
             await ExtractTemplateFilesAsync(submissionCheckRequest, tempDirectory);
-            
-            submissionCheckStatusEvent = new SubmissionCheckStatusEvent {
+
+            submissionCheckStatusEvent = new SubmissionCheckStatusEvent
+            {
                 SubmissionId = submissionCheckRequest.Id,
                 OccurenceDateTime = DateTime.UtcNow
             };
@@ -111,12 +125,14 @@ namespace AppsTester.Checker.Android
                     Grade = 0,
                     TotalGrade = 0,
                     TestResults = new List<SubmissionCheckTestResult>(),
-                    GradleError = (assembleDebugTaskResult.StandardOutput + Environment.NewLine + Environment.NewLine + assembleDebugTaskResult.StandardError).Trim(),
+                    GradleError = (assembleDebugTaskResult.StandardOutput + Environment.NewLine + Environment.NewLine +
+                                   assembleDebugTaskResult.StandardError).Trim(),
                     ResultCode = SubmissionCheckResultCode.CompilationError
                 };
             }
-            
-            var assembleDebugAndroidTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebugAndroidTest");
+
+            var assembleDebugAndroidTaskResult =
+                await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebugAndroidTest");
             if (assembleDebugAndroidTaskResult.ExitCode != 0)
             {
                 return new SubmissionCheckResult
@@ -125,14 +141,16 @@ namespace AppsTester.Checker.Android
                     Grade = 0,
                     TotalGrade = 0,
                     TestResults = new List<SubmissionCheckTestResult>(),
-                    GradleError = (assembleDebugAndroidTaskResult.StandardOutput + Environment.NewLine + Environment.NewLine + assembleDebugAndroidTaskResult.StandardError).Trim(),
+                    GradleError = (assembleDebugAndroidTaskResult.StandardOutput + Environment.NewLine +
+                                   Environment.NewLine + assembleDebugAndroidTaskResult.StandardError).Trim(),
                     ResultCode = SubmissionCheckResultCode.CompilationError
                 };
             }
 
             var adbClient = _adbClientProvider.GetAdbClient();
-            
-            submissionCheckStatusEvent = new SubmissionCheckStatusEvent {
+
+            submissionCheckStatusEvent = new SubmissionCheckStatusEvent
+            {
                 SubmissionId = submissionCheckRequest.Id,
                 OccurenceDateTime = DateTime.UtcNow
             };
@@ -142,7 +160,7 @@ namespace AppsTester.Checker.Android
             await Task.Run(() =>
             {
                 var packageManager = new PackageManager(adbClient, deviceData);
-                
+
                 foreach (var package in packageManager.Packages.Where(p => p.Key.Contains("profexam")))
                     packageManager.UninstallPackage(package.Key);
 
@@ -155,8 +173,9 @@ namespace AppsTester.Checker.Android
                 packageManager.InstallPackage(apkFilePath2, true);
                 _logger.LogInformation($"Reinstalled androidTest application in directory: {tempDirectory}");
             }, cancellationToken);
-            
-            submissionCheckStatusEvent = new SubmissionCheckStatusEvent {
+
+            submissionCheckStatusEvent = new SubmissionCheckStatusEvent
+            {
                 SubmissionId = submissionCheckRequest.Id,
                 OccurenceDateTime = DateTime.UtcNow
             };
