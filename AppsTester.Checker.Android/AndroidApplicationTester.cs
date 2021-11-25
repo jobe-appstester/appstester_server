@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -10,31 +9,25 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
+using AppsTester.Checker.Android.Gradle;
 using AppsTester.Shared;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
 using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Mono.Unix;
 using SharpAdbClient;
 using SharpAdbClient.DeviceCommands;
 
 namespace AppsTester.Checker.Android
 {
-    internal class GradleTaskResult
-    {
-        public string Output { get; set; }
-        public string Error { get; set; }
-        public int Code { get; set; }
-    }
-    
     internal class AndroidApplicationTester
     {
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IRabbitBusProvider _rabbitBusProvider;
+        private readonly IGradleRunner _gradleRunner;
         private readonly ILogger<AndroidApplicationTester> _logger;
 
         public AndroidApplicationTester(
@@ -42,13 +35,15 @@ namespace AppsTester.Checker.Android
             ILogger<AndroidApplicationTester> logger,
             IHttpClientFactory httpClientFactory,
             IAdbClientProvider adbClientProvider,
-            IRabbitBusProvider rabbitBusProvider)
+            IRabbitBusProvider rabbitBusProvider,
+            IGradleRunner gradleRunner)
         {
             _configuration = configuration;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
             _adbClientProvider = adbClientProvider;
             _rabbitBusProvider = rabbitBusProvider;
+            _gradleRunner = gradleRunner;
         }
 
         public async Task<SubmissionCheckResult> CheckSubmissionAsync(
@@ -104,8 +99,8 @@ namespace AppsTester.Checker.Android
             submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "gradle_build" });
             await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
 
-            var assembleDebugTaskResult = await ExecuteGradleTaskAsync(tempDirectory, "assembleDebug");
-            if (assembleDebugTaskResult.Code != 0)
+            var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebug");
+            if (assembleDebugTaskResult.ExitCode != 0)
             {
                 return new SubmissionCheckResult
                 {
@@ -113,13 +108,13 @@ namespace AppsTester.Checker.Android
                     Grade = 0,
                     TotalGrade = 0,
                     TestResults = new List<SubmissionCheckTestResult>(),
-                    GradleError = (assembleDebugTaskResult.Output + Environment.NewLine + Environment.NewLine + assembleDebugTaskResult.Error).Trim(),
+                    GradleError = (assembleDebugTaskResult.StandardOutput + Environment.NewLine + Environment.NewLine + assembleDebugTaskResult.StandardError).Trim(),
                     ResultCode = SubmissionCheckResultCode.CompilationError
                 };
             }
             
-            var assembleDebugAndroidTaskResult = await ExecuteGradleTaskAsync(tempDirectory, "assembleDebugAndroidTest");
-            if (assembleDebugAndroidTaskResult.Code != 0)
+            var assembleDebugAndroidTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebugAndroidTest");
+            if (assembleDebugAndroidTaskResult.ExitCode != 0)
             {
                 return new SubmissionCheckResult
                 {
@@ -127,7 +122,7 @@ namespace AppsTester.Checker.Android
                     Grade = 0,
                     TotalGrade = 0,
                     TestResults = new List<SubmissionCheckTestResult>(),
-                    GradleError = (assembleDebugAndroidTaskResult.Output + Environment.NewLine + Environment.NewLine + assembleDebugAndroidTaskResult.Error).Trim(),
+                    GradleError = (assembleDebugAndroidTaskResult.StandardOutput + Environment.NewLine + Environment.NewLine + assembleDebugAndroidTaskResult.StandardError).Trim(),
                     ResultCode = SubmissionCheckResultCode.CompilationError
                 };
             }
@@ -289,62 +284,6 @@ namespace AppsTester.Checker.Android
                         Stream = s["stream"]
                     })
                     .ToList()
-            };
-        }
-
-        private async Task<GradleTaskResult> ExecuteGradleTaskAsync(string tempDirectory, string taskName)
-        {
-            _logger.LogInformation($"Started gradle task \"{taskName}\" in directory: {tempDirectory}");
-
-            try
-            {
-                var unixFileInfo = new UnixFileInfo(Path.Join(tempDirectory, "gradlew"))
-                {
-                    FileAccessPermissions = FileAccessPermissions.AllPermissions
-                };
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                return new GradleTaskResult
-                {
-                    Code = -1,
-                    Output = "",
-                    Error = "Invalid ZIP file structure",
-                };
-            }
-
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = Path.Join(tempDirectory, "gradlew"),
-                    Arguments = taskName,
-                    WorkingDirectory = tempDirectory,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    Environment =
-                    {
-                        ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"]
-                    }
-                }
-            };
-
-            process.Start();
-
-            var readOutputTask = process.StandardOutput.ReadToEndAsync();
-            var readErrorTask = process.StandardError.ReadToEndAsync();
-
-            await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync());
-
-            _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
-            
-            return new GradleTaskResult
-            {
-                Code = process.ExitCode,
-                Error = readErrorTask.Result,
-                Output = readOutputTask.Result
             };
         }
 
