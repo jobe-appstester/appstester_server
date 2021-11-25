@@ -5,11 +5,11 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Gradle;
+using AppsTester.Checker.Android.Instrumentations;
 using AppsTester.Shared;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
@@ -28,6 +28,7 @@ namespace AppsTester.Checker.Android
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IRabbitBusProvider _rabbitBusProvider;
         private readonly IGradleRunner _gradleRunner;
+        private readonly IInstrumentationsOutputParser _instrumentationsOutputParser;
         private readonly ILogger<AndroidApplicationTester> _logger;
 
         public AndroidApplicationTester(
@@ -36,7 +37,8 @@ namespace AppsTester.Checker.Android
             IHttpClientFactory httpClientFactory,
             IAdbClientProvider adbClientProvider,
             IRabbitBusProvider rabbitBusProvider,
-            IGradleRunner gradleRunner)
+            IGradleRunner gradleRunner,
+            IInstrumentationsOutputParser instrumentationsOutputParser)
         {
             _configuration = configuration;
             _logger = logger;
@@ -44,6 +46,7 @@ namespace AppsTester.Checker.Android
             _adbClientProvider = adbClientProvider;
             _rabbitBusProvider = rabbitBusProvider;
             _gradleRunner = gradleRunner;
+            _instrumentationsOutputParser = instrumentationsOutputParser;
         }
 
         public async Task<SubmissionCheckResult> CheckSubmissionAsync(
@@ -170,121 +173,7 @@ namespace AppsTester.Checker.Android
 
             Directory.Delete(tempDirectory, true);
 
-            return ParseOutputTestResults(submissionCheckRequest, consoleOutput);
-        }
-
-        private SubmissionCheckResult ParseOutputTestResults(SubmissionCheckRequest submissionCheckRequest,
-            string consoleOutput)
-        {
-            var statusRegexp =
-                new Regex("^INSTRUMENTATION_(STATUS|STATUS_CODE):\\s(.*?)(=(.*?))?((?=INSTRUMENTATION)|(?=onError)|$)",
-                    RegexOptions.Singleline);
-            var resultRegexp =
-                new Regex("^INSTRUMENTATION_(RESULT|CODE):\\s(.*?)(=(.*?))?((?=INSTRUMENTATION)|(?=onError)|$)",
-                    RegexOptions.Singleline);
-            var onErrorRegexp =
-                new Regex("^onError:\\scommandError=(.*?)\\smessage=(.*?)((?=INSTRUMENTATION)|(?=onError)|$)",
-                    RegexOptions.Singleline);
-
-            var statusResults = new Dictionary<string, string>();
-            var resultResults = new Dictionary<string, string>();
-
-            var statuses = new List<Dictionary<string, string>>();
-            var results = new List<Dictionary<string, string>>();
-            var errors = new List<Dictionary<string, string>>();
-
-            while (true)
-            {
-                var match = statusRegexp.Match(consoleOutput);
-                if (match.Success)
-                {
-                    if (match.Groups[1].Value.Trim() == "STATUS")
-                    {
-                        statusResults.Add(match.Groups[2].Value.Trim(), match.Groups[4].Value.Trim());
-                    }
-                    else
-                    {
-                        statusResults.Add("result_code", match.Groups[2].Value.Trim());
-
-                        if (match.Groups[2].Value.Trim() != "1")
-                            statuses.Add(statusResults.ToDictionary(p => p.Key, p => p.Value.Trim()));
-
-                        statusResults.Clear();
-                    }
-
-                    consoleOutput = consoleOutput.Substring(match.Length).Trim();
-                    continue;
-                }
-
-                match = resultRegexp.Match(consoleOutput);
-                if (match.Success)
-                {
-                    if (match.Groups[1].Value.Trim() == "RESULT")
-                    {
-                        resultResults.Add(match.Groups[2].Value.Trim(), match.Groups[4].Value.Trim());
-                    }
-                    else
-                    {
-                        resultResults.Add("result_code", match.Groups[2].Value.Trim());
-
-                        results.Add(resultResults.ToDictionary(p => p.Key, p => p.Value.Trim()));
-                        resultResults.Clear();
-                    }
-
-                    consoleOutput = consoleOutput.Substring(match.Length).Trim();
-                    continue;
-                }
-
-                match = onErrorRegexp.Match(consoleOutput);
-                if (match.Success)
-                {
-                    errors.Add(new Dictionary<string, string>
-                    {
-                        ["commandError"] = match.Groups[1].Value.Trim(),
-                        ["message"] = match.Groups[2].Value.Trim()
-                    });
-                    consoleOutput = consoleOutput.Substring(match.Length).Trim();
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(consoleOutput)) break;
-
-                _logger.LogCritical($"Unknown unparsed data for event {submissionCheckRequest.Id}: {consoleOutput}");
-                break;
-            }
-
-            if (!results.Any() || errors.Any())
-            {
-                return new SubmissionCheckResult
-                {
-                    Id = submissionCheckRequest.Id,
-                    Grade = 0,
-                    TotalGrade = 0,
-                    TestResults = new List<SubmissionCheckTestResult>(),
-                    GradleError = consoleOutput + Environment.NewLine + string.Join(Environment.NewLine, errors.Select(e => e["message"])),
-                    ResultCode = SubmissionCheckResultCode.CompilationError,
-                };
-            }
-            
-            var totalResults = results.First();
-
-            return new SubmissionCheckResult
-            {
-                Id = submissionCheckRequest.Id,
-                Grade = int.Parse(totalResults.GetValueOrDefault("grade", "0")),
-                TotalGrade = int.Parse(totalResults.GetValueOrDefault("maxGrade", "0")),
-                ResultCode = SubmissionCheckResultCode.Success,
-                TestResults = statuses
-                    .Where(s => s["id"] == "AndroidJUnitRunner")
-                    .Select(s => new SubmissionCheckTestResult
-                    {
-                        Class = s["class"],
-                        Test = s["test"],
-                        ResultCode = (SubmissionCheckTestResultCode)int.Parse(s["result_code"]),
-                        Stream = s["stream"]
-                    })
-                    .ToList()
-            };
+            return _instrumentationsOutputParser.Parse(submissionCheckRequest, consoleOutput);
         }
 
         private async Task ExtractTemplateFilesAsync(SubmissionCheckRequest submissionCheckRequest,
