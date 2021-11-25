@@ -157,22 +157,19 @@ namespace AppsTester.Checker.Android
             submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = "install_application" });
             await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
 
-            await Task.Run(() =>
-            {
-                var packageManager = new PackageManager(adbClient, deviceData);
+            var packageManager = new PackageManager(adbClient, deviceData);
 
-                foreach (var package in packageManager.Packages.Where(p => p.Key.Contains("profexam")))
-                    packageManager.UninstallPackage(package.Key);
+            foreach (var package in packageManager.Packages.Where(p => p.Key.Contains("profexam")))
+                packageManager.UninstallPackage(package.Key);
 
-                var apkFilePath = Path.Join(tempDirectory, "app", "build", "outputs", "apk", "debug", "app-debug.apk");
-                packageManager.InstallPackage(apkFilePath, true);
-                _logger.LogInformation($"Reinstalled debug application in directory: {tempDirectory}");
+            var apkFilePath = Path.Join(tempDirectory, "app", "build", "outputs", "apk", "debug", "app-debug.apk");
+            packageManager.InstallPackage(apkFilePath, true);
+            _logger.LogInformation($"Reinstalled debug application in directory: {tempDirectory}");
 
-                var apkFilePath2 = Path.Join(tempDirectory, "app", "build", "outputs", "apk", "androidTest", "debug",
-                    "app-debug-androidTest.apk");
-                packageManager.InstallPackage(apkFilePath2, true);
-                _logger.LogInformation($"Reinstalled androidTest application in directory: {tempDirectory}");
-            }, cancellationToken);
+            var apkFilePath2 = Path.Join(tempDirectory, "app", "build", "outputs", "apk", "androidTest", "debug",
+                "app-debug-androidTest.apk");
+            packageManager.InstallPackage(apkFilePath2, true);
+            _logger.LogInformation($"Reinstalled androidTest application in directory: {tempDirectory}");
 
             submissionCheckStatusEvent = new SubmissionCheckStatusEvent
             {
