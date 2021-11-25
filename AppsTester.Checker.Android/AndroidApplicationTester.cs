@@ -55,17 +55,8 @@ namespace AppsTester.Checker.Android
             CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(submissionCheckRequest.Parameters["android_package_name"] as string))
-            {
-                return new SubmissionCheckResult
-                {
-                    Id = submissionCheckRequest.Id,
-                    Grade = 0,
-                    GradleError = "Invalid Android Package Name. Please, check parameter's value in question settings.",
-                    ResultCode = SubmissionCheckResultCode.CompilationError,
-                    TestResults = new List<SubmissionCheckTestResult>(),
-                    TotalGrade = 0
-                };
-            }
+                return ValidationErrorResult(submissionCheckRequest,
+                    "Invalid Android Package Name. Please, check parameter's value in question settings.");
 
             var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
@@ -95,15 +86,7 @@ namespace AppsTester.Checker.Android
             catch (ZipException e)
             {
                 Console.WriteLine(e);
-                return new SubmissionCheckResult
-                {
-                    Id = submissionCheckRequest.Id,
-                    Grade = 0,
-                    GradleError = "Cannot extract the ZIP file",
-                    ResultCode = SubmissionCheckResultCode.CompilationError,
-                    TestResults = new List<SubmissionCheckTestResult>(),
-                    TotalGrade = 0
-                };
+                return ValidationErrorResult(submissionCheckRequest, "Cannot extract submitted file.");
             }
 
             await ExtractTemplateFilesAsync(submissionCheckRequest, tempDirectory);
@@ -117,48 +100,17 @@ namespace AppsTester.Checker.Android
             await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
 
             if (!_gradleRunner.IsGradlewInstalledInDirectory(tempDirectory))
-            {
-                return new SubmissionCheckResult
-                {
-                    Id = submissionCheckRequest.Id,
-                    Grade = 0,
-                    GradleError = "Can't find Gradlew launcher. Please, check template and submission files.",
-                    ResultCode = SubmissionCheckResultCode.CompilationError,
-                    TestResults = new List<SubmissionCheckTestResult>(),
-                    TotalGrade = 0
-                };
-            }
+                return ValidationErrorResult(submissionCheckRequest,
+                    "Can't find Gradlew launcher. Please, check template and submission files.");
 
             var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebug");
-            if (assembleDebugTaskResult.ExitCode != 0)
-            {
-                return new SubmissionCheckResult
-                {
-                    Id = submissionCheckRequest.Id,
-                    Grade = 0,
-                    TotalGrade = 0,
-                    TestResults = new List<SubmissionCheckTestResult>(),
-                    GradleError = (assembleDebugTaskResult.StandardOutput + Environment.NewLine + Environment.NewLine +
-                                   assembleDebugTaskResult.StandardError).Trim(),
-                    ResultCode = SubmissionCheckResultCode.CompilationError
-                };
-            }
+            if (!assembleDebugTaskResult.IsSuccessful)
+                return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
 
-            var assembleDebugAndroidTaskResult =
+            var assembleDebugAndroidTestResult =
                 await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebugAndroidTest");
-            if (assembleDebugAndroidTaskResult.ExitCode != 0)
-            {
-                return new SubmissionCheckResult
-                {
-                    Id = submissionCheckRequest.Id,
-                    Grade = 0,
-                    TotalGrade = 0,
-                    TestResults = new List<SubmissionCheckTestResult>(),
-                    GradleError = (assembleDebugAndroidTaskResult.StandardOutput + Environment.NewLine +
-                                   Environment.NewLine + assembleDebugAndroidTaskResult.StandardError).Trim(),
-                    ResultCode = SubmissionCheckResultCode.CompilationError
-                };
-            }
+            if (assembleDebugAndroidTestResult.IsSuccessful)
+                return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
 
             var adbClient = _adbClientProvider.GetAdbClient();
 
@@ -205,6 +157,39 @@ namespace AppsTester.Checker.Android
             return _instrumentationsOutputParser.Parse(submissionCheckRequest, consoleOutput);
         }
 
+        private SubmissionCheckResult ValidationErrorResult(
+            SubmissionCheckRequest submissionCheckRequest, string validationMessage)
+        {
+            return new SubmissionCheckResult
+            {
+                Id = submissionCheckRequest.Id,
+                Grade = 0,
+                GradleError = validationMessage,
+                ResultCode = SubmissionCheckResultCode.CompilationError,
+                TestResults = new List<SubmissionCheckTestResult>(),
+                TotalGrade = 0
+            };
+        }
+
+        private SubmissionCheckResult CompilationErrorResult(
+            SubmissionCheckRequest submissionCheckRequest, GradleTaskExecutionResult taskExecutionResult)
+        {
+            var totalErrorStringBuilder = new StringBuilder();
+            totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardOutput);
+            totalErrorStringBuilder.AppendLine();
+            totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardError);
+
+            return new SubmissionCheckResult
+            {
+                Id = submissionCheckRequest.Id,
+                Grade = 0,
+                TotalGrade = 0,
+                TestResults = new List<SubmissionCheckTestResult>(),
+                GradleError = totalErrorStringBuilder.ToString().Trim(),
+                ResultCode = SubmissionCheckResultCode.CompilationError
+            };
+        }
+
         private async Task ExtractTemplateFilesAsync(SubmissionCheckRequest submissionCheckRequest,
             string tempDirectory)
         {
@@ -221,11 +206,10 @@ namespace AppsTester.Checker.Android
             var downloadedFile = new MemoryStream();
             await downloadFileStream.CopyToAsync(downloadedFile);
 
-            await Task.Run(() =>
-            {
-                var fastZip = new FastZip();
-                fastZip.ExtractZip(downloadedFile, tempDirectory, FastZip.Overwrite.Always, null, null, null, false, true);
-            });
+            var fastZip = new FastZip();
+            fastZip.ExtractZip(
+                downloadedFile, tempDirectory, FastZip.Overwrite.Always, null, null, null, false, true);
+
             _logger.LogInformation($"Extracted submit files into the directory: {tempDirectory}");
         }
 
