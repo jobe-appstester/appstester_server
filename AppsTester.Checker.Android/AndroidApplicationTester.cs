@@ -190,31 +190,34 @@ namespace AppsTester.Checker.Android
             await using var downloadedFile = new MemoryStream();
             await downloadFileStream.CopyToAsync(downloadedFile);
 
-            using var zipArchive = new ZipArchive(downloadedFile, ZipArchiveMode.Update);
-
-            var levelsToReduce = zipArchive
-                .Entries
-                .Where(e => e.Length != 0)
-                .Min(e => e.FullName.Split('/').Length);
-
-            if (levelsToReduce > 0)
+            using (var mutableZipArchive = new ZipArchive(downloadedFile, ZipArchiveMode.Update))
             {
-                var entriesToMove = zipArchive.Entries.ToList();
-                foreach (var entryToMove in entriesToMove)
+                var levelsToReduce = mutableZipArchive
+                    .Entries
+                    .Where(e => e.Length != 0)
+                    .Min(e => e.FullName.Split('/').Length);
+
+                if (levelsToReduce > 0)
                 {
-                    var newEntryPath = string.Join('/', entryToMove.FullName.Split('/').Skip(levelsToReduce));
-                    if (newEntryPath == string.Empty)
-                        continue;
+                    var entriesToMove = mutableZipArchive.Entries.ToList();
+                    foreach (var entryToMove in entriesToMove)
+                    {
+                        var newEntryPath = string.Join('/', entryToMove.FullName.Split('/').Skip(levelsToReduce));
+                        if (newEntryPath == string.Empty)
+                            continue;
 
-                    var movedEntry = zipArchive.CreateEntry(newEntryPath);
+                        var movedEntry = mutableZipArchive.CreateEntry(newEntryPath);
 
-                    await using (var entryToMoveStream = entryToMove.Open())
-                    await using (var movedEntryStream = movedEntry.Open())
-                        await entryToMoveStream.CopyToAsync(movedEntryStream);
+                        await using (var entryToMoveStream = entryToMove.Open())
+                        await using (var movedEntryStream = movedEntry.Open())
+                            await entryToMoveStream.CopyToAsync(movedEntryStream);
 
-                    entryToMove.Delete();
+                        entryToMove.Delete();
+                    }
                 }
             }
+
+            using var zipArchive = new ZipArchive(downloadedFile);
 
             zipArchive.ExtractToDirectory(temporaryFolder.AbsolutePath, overwriteFiles: true);
 
