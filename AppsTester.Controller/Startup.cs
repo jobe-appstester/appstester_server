@@ -1,7 +1,6 @@
 using System;
 using AppsTester.Controller.Files;
 using AppsTester.Controller.Submissions;
-using AppsTester.Shared;
 using AppsTester.Shared.RabbitMq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -9,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.OpenApi.Models;
 
 namespace AppsTester.Controller
 {
@@ -30,7 +28,7 @@ namespace AppsTester.Controller
             
             services.AddSingleton(_ => new FileCache("apps-tester.controller", TimeSpan.FromDays(7)));
             services.AddDbContext<ApplicationDbContext>(options => 
-                options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
             
             services.AddHostedService<SubscriptionCheckResultsProcessor>();
             services.AddHostedService<SubscriptionCheckStatusesProcessor>();

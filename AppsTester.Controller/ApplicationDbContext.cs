@@ -9,7 +9,7 @@ namespace AppsTester.Controller
 
         public ApplicationDbContext(DbContextOptions options) : base(options)
         {
-            Database.EnsureCreated();
+            Database.Migrate();
         }
     }
 }
