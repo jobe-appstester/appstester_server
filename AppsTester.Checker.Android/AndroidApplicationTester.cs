@@ -208,9 +208,9 @@ namespace AppsTester.Checker.Android
 
                     var movedEntry = zipArchive.CreateEntry(newEntryPath);
 
-                    await using var entryToMoveStream = entryToMove.Open();
-                    await using var movedEntryStream = movedEntry.Open();
-                    await entryToMoveStream.CopyToAsync(movedEntryStream);
+                    await using (var entryToMoveStream = entryToMove.Open())
+                    await using (var movedEntryStream = movedEntry.Open())
+                        await entryToMoveStream.CopyToAsync(movedEntryStream);
 
                     entryToMove.Delete();
                 }
