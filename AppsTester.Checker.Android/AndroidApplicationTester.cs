@@ -190,7 +190,7 @@ namespace AppsTester.Checker.Android
             await using var downloadedFile = new MemoryStream();
             await downloadFileStream.CopyToAsync(downloadedFile);
 
-            using var zipArchive = new ZipArchive(downloadedFile);
+            using var zipArchive = new ZipArchive(downloadedFile, ZipArchiveMode.Update);
 
             var levelsToReduce = zipArchive
                 .Entries
