@@ -192,14 +192,21 @@ namespace AppsTester.Checker.Android
 
             using var zipArchive = new ZipArchive(downloadedFile);
 
-            var levelsToReduce = zipArchive.Entries.Min(e => e.FullName.Split('/').Length);
+            var levelsToReduce = zipArchive
+                .Entries
+                .Where(e => e.Length != 0)
+                .Min(e => e.FullName.Split('/').Length);
+
             if (levelsToReduce > 0)
             {
                 var entriesToMove = zipArchive.Entries.ToList();
                 foreach (var entryToMove in entriesToMove)
                 {
-                    var movedEntry =
-                        zipArchive.CreateEntry(string.Join('/', entryToMove.FullName.Split('/').Skip(levelsToReduce)));
+                    var newEntryPath = string.Join('/', entryToMove.FullName.Split('/').Skip(levelsToReduce));
+                    if (newEntryPath == string.Empty)
+                        continue;
+
+                    var movedEntry = zipArchive.CreateEntry(newEntryPath);
 
                     await using var entryToMoveStream = entryToMove.Open();
                     await using var movedEntryStream = movedEntry.Open();
