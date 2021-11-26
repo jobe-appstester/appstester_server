@@ -195,7 +195,7 @@ namespace AppsTester.Checker.Android
                 var levelsToReduce = mutableZipArchive
                     .Entries
                     .Where(e => e.Length != 0)
-                    .Min(e => e.FullName.Split('/').Length);
+                    .Min(e => e.FullName.Count(c => c == '/'));
 
                 if (levelsToReduce > 0)
                 {
@@ -217,7 +217,7 @@ namespace AppsTester.Checker.Android
                 }
             }
 
-            downloadedFile.Seek(0, SeekOrigin.Begin);
+            downloadedFile.Seek(offset: 0, SeekOrigin.Begin);
 
             using var zipArchive = new ZipArchive(downloadedFile);
 
