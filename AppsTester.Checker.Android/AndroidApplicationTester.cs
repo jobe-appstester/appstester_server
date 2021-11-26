@@ -185,14 +185,31 @@ namespace AppsTester.Checker.Android
 
         private async Task ExtractSubmitFilesAsync(SubmissionCheckRequest submissionCheckRequest, ITemporaryFolder temporaryFolder)
         {
-            var downloadFileStream = await DownloadFileAsync(submissionCheckRequest.Files["submission"]);
+            await using var downloadFileStream = await DownloadFileAsync(submissionCheckRequest.Files["submission"]);
 
-            var downloadedFile = new MemoryStream();
+            await using var downloadedFile = new MemoryStream();
             await downloadFileStream.CopyToAsync(downloadedFile);
 
-            var fastZip = new FastZip();
-            fastZip.ExtractZip(
-                downloadedFile, temporaryFolder.AbsolutePath, FastZip.Overwrite.Always, null, null, null, false, true);
+            using var zipArchive = new ZipArchive(downloadedFile);
+
+            var levelsToReduce = zipArchive.Entries.Min(e => e.FullName.Split('/').Length);
+            if (levelsToReduce > 0)
+            {
+                var entriesToMove = zipArchive.Entries.ToList();
+                foreach (var entryToMove in entriesToMove)
+                {
+                    var movedEntry =
+                        zipArchive.CreateEntry(string.Join('/', entryToMove.FullName.Split('/').Skip(levelsToReduce)));
+
+                    await using var entryToMoveStream = entryToMove.Open();
+                    await using var movedEntryStream = movedEntry.Open();
+                    await entryToMoveStream.CopyToAsync(movedEntryStream);
+
+                    entryToMove.Delete();
+                }
+            }
+
+            zipArchive.ExtractToDirectory(temporaryFolder.AbsolutePath, overwriteFiles: true);
 
             _logger.LogInformation($"Extracted submit files into the directory: {temporaryFolder}");
         }
