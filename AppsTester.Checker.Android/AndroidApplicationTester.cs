@@ -11,6 +11,7 @@ using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Gradle;
 using AppsTester.Checker.Android.Instrumentations;
 using AppsTester.Shared;
+using AppsTester.Shared.Files;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
 using ICSharpCode.SharpZipLib.Zip;
@@ -30,6 +31,7 @@ namespace AppsTester.Checker.Android
         private readonly IGradleRunner _gradleRunner;
         private readonly IInstrumentationsOutputParser _instrumentationsOutputParser;
         private readonly ILogger<AndroidApplicationTester> _logger;
+        private readonly ITemporaryFolderProvider _temporaryFolderProvider;
 
         public AndroidApplicationTester(
             IConfiguration configuration,
@@ -38,7 +40,8 @@ namespace AppsTester.Checker.Android
             IAdbClientProvider adbClientProvider,
             IRabbitBusProvider rabbitBusProvider,
             IGradleRunner gradleRunner,
-            IInstrumentationsOutputParser instrumentationsOutputParser)
+            IInstrumentationsOutputParser instrumentationsOutputParser,
+            ITemporaryFolderProvider temporaryFolderProvider)
         {
             _configuration = configuration;
             _logger = logger;
@@ -47,6 +50,7 @@ namespace AppsTester.Checker.Android
             _rabbitBusProvider = rabbitBusProvider;
             _gradleRunner = gradleRunner;
             _instrumentationsOutputParser = instrumentationsOutputParser;
+            _temporaryFolderProvider = temporaryFolderProvider;
         }
 
         public async Task<SubmissionCheckResult> CheckSubmissionAsync(
@@ -60,14 +64,15 @@ namespace AppsTester.Checker.Android
 
             await SetStatusAsync(submissionCheckRequest, "checking_started");
 
-            var tempDirectory = CreateBuildDirectory(submissionCheckRequest);
-            _logger.LogInformation($"Generated temporary directory: {tempDirectory}");
+            using var temporaryFolder = _temporaryFolderProvider.Get();
+
+            _logger.LogInformation($"Generated temporary directory: {temporaryFolder.AbsolutePath}");
 
             await SetStatusAsync(submissionCheckRequest, "unzip_files");
 
             try
             {
-                await ExtractSubmitFilesAsync(submissionCheckRequest, tempDirectory);
+                await ExtractSubmitFilesAsync(submissionCheckRequest, temporaryFolder);
             }
             catch (ZipException e)
             {
@@ -75,20 +80,20 @@ namespace AppsTester.Checker.Android
                 return ValidationResult(submissionCheckRequest, "Cannot extract submitted file.");
             }
 
-            await ExtractTemplateFilesAsync(submissionCheckRequest, tempDirectory);
+            await ExtractTemplateFilesAsync(submissionCheckRequest, temporaryFolder);
 
             await SetStatusAsync(submissionCheckRequest, "gradle_build");
 
-            if (!_gradleRunner.IsGradlewInstalledInDirectory(tempDirectory))
+            if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
                 return ValidationResult(submissionCheckRequest,
                     "Can't find Gradlew launcher. Please, check template and submission files.");
 
-            var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebug");
+            var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(temporaryFolder.AbsolutePath, "assembleDebug");
             if (!assembleDebugTaskResult.IsSuccessful)
                 return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
 
             var assembleDebugAndroidTestResult =
-                await _gradleRunner.ExecuteTaskAsync(tempDirectory, "assembleDebugAndroidTest");
+                await _gradleRunner.ExecuteTaskAsync(temporaryFolder.AbsolutePath, "assembleDebugAndroidTest");
             if (!assembleDebugAndroidTestResult.IsSuccessful)
                 return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
 
@@ -100,14 +105,14 @@ namespace AppsTester.Checker.Android
             foreach (var package in packageManager.Packages.Where(p => p.Key.Contains("profexam")))
                 packageManager.UninstallPackage(package.Key);
 
-            var apkFilePath = Path.Join(tempDirectory, "app", "build", "outputs", "apk", "debug", "app-debug.apk");
+            var apkFilePath = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "debug", "app-debug.apk");
             packageManager.InstallPackage(apkFilePath, true);
-            _logger.LogInformation($"Reinstalled debug application in directory: {tempDirectory}");
+            _logger.LogInformation($"Reinstalled debug application in directory: {temporaryFolder.AbsolutePath}");
 
-            var apkFilePath2 = Path.Join(tempDirectory, "app", "build", "outputs", "apk", "androidTest", "debug",
+            var apkFilePath2 = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "androidTest", "debug",
                 "app-debug-androidTest.apk");
             packageManager.InstallPackage(apkFilePath2, true);
-            _logger.LogInformation($"Reinstalled androidTest application in directory: {tempDirectory}");
+            _logger.LogInformation($"Reinstalled androidTest application in directory: {temporaryFolder.AbsolutePath}");
 
             await SetStatusAsync(submissionCheckRequest, "test");
 
@@ -118,8 +123,6 @@ namespace AppsTester.Checker.Android
                 consoleOutputReceiver, Encoding.UTF8, cancellationToken);
             _logger.LogInformation($"Completed testing of Android application for event {submissionCheckRequest.Id}");
             var consoleOutput = consoleOutputReceiver.ToString();
-
-            Directory.Delete(tempDirectory, true);
 
             return _instrumentationsOutputParser.Parse(submissionCheckRequest, consoleOutput);
         }
@@ -172,15 +175,15 @@ namespace AppsTester.Checker.Android
         }
 
         private async Task ExtractTemplateFilesAsync(SubmissionCheckRequest submissionCheckRequest,
-            string tempDirectory)
+            ITemporaryFolder temporaryFolder)
         {
             var fileStream = await DownloadFileAsync(submissionCheckRequest.Files["template"]);
             using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read);
-            await Task.Run(() => archive.ExtractToDirectory(tempDirectory, true));
-            _logger.LogInformation($"Extracted template files into the directory: {tempDirectory}");
+            await Task.Run(() => archive.ExtractToDirectory(temporaryFolder.AbsolutePath, true));
+            _logger.LogInformation($"Extracted template files into the directory: {temporaryFolder}");
         }
 
-        private async Task ExtractSubmitFilesAsync(SubmissionCheckRequest submissionCheckRequest, string tempDirectory)
+        private async Task ExtractSubmitFilesAsync(SubmissionCheckRequest submissionCheckRequest, ITemporaryFolder temporaryFolder)
         {
             var downloadFileStream = await DownloadFileAsync(submissionCheckRequest.Files["submission"]);
 
@@ -189,9 +192,9 @@ namespace AppsTester.Checker.Android
 
             var fastZip = new FastZip();
             fastZip.ExtractZip(
-                downloadedFile, tempDirectory, FastZip.Overwrite.Always, null, null, null, false, true);
+                downloadedFile, temporaryFolder.AbsolutePath, FastZip.Overwrite.Always, null, null, null, false, true);
 
-            _logger.LogInformation($"Extracted submit files into the directory: {tempDirectory}");
+            _logger.LogInformation($"Extracted submit files into the directory: {temporaryFolder}");
         }
 
         private async Task<Stream> DownloadFileAsync(string fileHash)
@@ -200,13 +203,6 @@ namespace AppsTester.Checker.Android
             var fileStream = await httpClient.GetStreamAsync(
                 $"{_configuration["Controller:Url"]}/api/v1/files/{fileHash}");
             return fileStream;
-        }
-
-        private static string CreateBuildDirectory(SubmissionCheckRequest submissionCheckRequest)
-        {
-            var tempDirectory = Path.Join(Path.GetTempPath(), Guid.NewGuid().ToString());
-            Directory.CreateDirectory(tempDirectory);
-            return tempDirectory;
         }
     }
 }

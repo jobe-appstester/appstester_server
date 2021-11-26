@@ -2,6 +2,7 @@
 using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Gradle;
 using AppsTester.Checker.Android.Instrumentations;
+using AppsTester.Shared.Files;
 using AppsTester.Shared.RabbitMq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -21,6 +22,7 @@ namespace AppsTester.Checker.Android
                     collection.AddSingleton<IGradleRunner, GradleRunner>();
                     collection.AddSingleton<IInstrumentationsOutputParser,InstrumentationsOutputParser>();
 
+                    collection.AddTemporaryFolders();
                     collection.AddRabbitMq();
 
                     collection.AddHostedService<AndroidApplicationTestingBackgroundService>();
