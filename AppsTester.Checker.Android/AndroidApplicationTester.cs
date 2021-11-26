@@ -190,7 +190,7 @@ namespace AppsTester.Checker.Android
             await using var downloadedFile = new MemoryStream();
             await downloadFileStream.CopyToAsync(downloadedFile);
 
-            using (var mutableZipArchive = new ZipArchive(downloadedFile, ZipArchiveMode.Update))
+            using (var mutableZipArchive = new ZipArchive(downloadedFile, ZipArchiveMode.Update, leaveOpen: true))
             {
                 var levelsToReduce = mutableZipArchive
                     .Entries
@@ -216,6 +216,8 @@ namespace AppsTester.Checker.Android
                     }
                 }
             }
+
+            downloadedFile.Seek(0, SeekOrigin.Begin);
 
             using var zipArchive = new ZipArchive(downloadedFile);
 
