@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -12,13 +13,16 @@ namespace AppsTester.Checker.Android.Gradle
     {
         bool IsGradlewInstalledInDirectory(string tempDirectory);
         
-        Task<GradleTaskExecutionResult> ExecuteTaskAsync(string tempDirectory, string taskName);
+        Task<GradleTaskExecutionResult> ExecuteTaskAsync(
+            string tempDirectory, string taskName, CancellationToken cancellationToken);
     }
     
     internal class GradleRunner : IGradleRunner
     {
         private readonly ILogger<GradleRunner> _logger;
         private readonly IConfiguration _configuration;
+
+        private readonly SemaphoreSlim _semaphore = new (initialCount: 1);
 
         public GradleRunner(ILogger<GradleRunner> logger, IConfiguration configuration)
         {
@@ -31,7 +35,8 @@ namespace AppsTester.Checker.Android.Gradle
             return File.Exists(Path.Join(tempDirectory, "gradlew"));
         }
 
-        public async Task<GradleTaskExecutionResult> ExecuteTaskAsync(string tempDirectory, string taskName)
+        public async Task<GradleTaskExecutionResult> ExecuteTaskAsync(
+            string tempDirectory, string taskName, CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Started gradle task \"{taskName}\" in directory: {tempDirectory}");
 
@@ -54,21 +59,30 @@ namespace AppsTester.Checker.Android.Gradle
                 }
             };
 
-            process.Start();
+            try
+            {
+                await _semaphore.WaitAsync(cancellationToken);
 
-            var readOutputTask = process.StandardOutput.ReadToEndAsync();
-            var readErrorTask = process.StandardError.ReadToEndAsync();
+                process.Start();
 
-            await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync());
+                var readOutputTask = process.StandardOutput.ReadToEndAsync();
+                var readErrorTask = process.StandardError.ReadToEndAsync();
 
-            _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
+                await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync());
 
-            return new GradleTaskExecutionResult
-            (
-                ExitCode: process.ExitCode,
-                StandardError: readErrorTask.Result,
-                StandardOutput: readOutputTask.Result
-            );
+                _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
+
+                return new GradleTaskExecutionResult
+                (
+                    ExitCode: process.ExitCode,
+                    StandardError: readErrorTask.Result,
+                    StandardOutput: readOutputTask.Result
+                );
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
         private void EnsureGradlewExecutionRights(string tempDirectory, string taskName)
