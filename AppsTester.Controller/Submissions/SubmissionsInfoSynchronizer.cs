@@ -103,11 +103,12 @@ namespace AppsTester.Controller.Submissions
                         SendingDateTimeUtc = DateTime.UtcNow
                     };
                     dbContext.SubmissionChecks.Add(submissionCheck);
-                    await dbContext.SaveChangesAsync(stoppingToken);
 
                     var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
                     await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, topic: submission.CheckerSystemName,
                         cancellationToken: stoppingToken);
+
+                    await dbContext.SaveChangesAsync(stoppingToken);
                 }
                 
                 await Task.Delay(TimeSpan.FromSeconds(1));
