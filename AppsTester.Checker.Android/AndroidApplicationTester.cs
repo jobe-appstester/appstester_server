@@ -132,9 +132,11 @@ namespace AppsTester.Checker.Android
         {
             var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
-            var submissionCheckStatusEvent = new SubmissionCheckStatusEvent(
-                requestEvent: submissionCheckRequestEvent,
-                result: new AndroidCheckStatus { Status = status });
+            var submissionCheckStatusEvent = new SubmissionCheckStatusEvent
+                {
+                    SubmissionId = submissionCheckRequestEvent.SubmissionId
+                }
+                .WithStatus(new AndroidCheckStatus { Status = status });
 
             await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
         }
@@ -142,16 +144,16 @@ namespace AppsTester.Checker.Android
         private SubmissionCheckResultEvent ValidationResult(
             SubmissionCheckRequestEvent submissionCheckRequestEvent, string validationMessage)
         {
-            return new SubmissionCheckResultEvent(
-                requestEvent: submissionCheckRequestEvent,
-                result: new AndroidCheckResult
-                {
-                    Grade = 0,
-                    TotalGrade = 0,
-                    TestResults = new List<SubmissionCheckTestResult>(),
-                    GradleError = validationMessage,
-                    ResultCode = SubmissionCheckResultCode.CompilationError,
-                });
+            return new SubmissionCheckResultEvent { SubmissionId = submissionCheckRequestEvent.SubmissionId }
+                .WithResult(
+                    new AndroidCheckResult
+                    {
+                        Grade = 0,
+                        TotalGrade = 0,
+                        TestResults = new List<SubmissionCheckTestResult>(),
+                        GradleError = validationMessage,
+                        ResultCode = SubmissionCheckResultCode.CompilationError,
+                    });
         }
 
         private SubmissionCheckResultEvent CompilationErrorResult(
@@ -162,16 +164,16 @@ namespace AppsTester.Checker.Android
             totalErrorStringBuilder.AppendLine();
             totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardError);
 
-            return new SubmissionCheckResultEvent(
-                requestEvent: submissionCheckRequestEvent,
-                result: new AndroidCheckResult
-                {
-                    Grade = 0,
-                    TotalGrade = 0,
-                    TestResults = new List<SubmissionCheckTestResult>(),
-                    GradleError = totalErrorStringBuilder.ToString().Trim(),
-                    ResultCode = SubmissionCheckResultCode.CompilationError,
-                });
+            return new SubmissionCheckResultEvent { SubmissionId = submissionCheckRequestEvent.SubmissionId }
+                .WithResult(
+                    new AndroidCheckResult
+                    {
+                        Grade = 0,
+                        TotalGrade = 0,
+                        TestResults = new List<SubmissionCheckTestResult>(),
+                        GradleError = totalErrorStringBuilder.ToString().Trim(),
+                        ResultCode = SubmissionCheckResultCode.CompilationError,
+                    });
         }
 
         private async Task ExtractTemplateFilesAsync(SubmissionCheckRequestEvent submissionCheckRequestEvent,

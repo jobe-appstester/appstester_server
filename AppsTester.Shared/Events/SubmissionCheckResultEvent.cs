@@ -1,25 +1,19 @@
 using System;
+using EasyNetQ;
 using Newtonsoft.Json;
 
 namespace AppsTester.Shared.Events
 {
+    [Queue(queueName: "Submissions.ChecksResultEvents")]
     public class SubmissionCheckResultEvent : SubmissionCheckEvent
     {
         public string SerializedResult { get; set; }
 
-        public SubmissionCheckResultEvent(SubmissionCheckRequestEvent requestEvent, object result)
-            : this(submissionId: requestEvent.SubmissionId, result)
-        {
-        }
-
-        public SubmissionCheckResultEvent(Guid submissionId, object result) : base(submissionId)
-        {
-            SetResult(result);
-        }
-
-        public void SetResult(object result)
+        public SubmissionCheckResultEvent WithResult(object result)
         {
             SerializedResult = JsonConvert.SerializeObject(result);
+
+            return this;
         }
 
         public TResult GetResult<TResult>()

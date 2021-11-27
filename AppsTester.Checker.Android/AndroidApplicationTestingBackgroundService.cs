@@ -33,7 +33,7 @@ namespace AppsTester.Checker.Android
             await rabbitConnection
                 .PubSub
                 .SubscribeAsync<SubmissionCheckRequestEvent>(
-                    subscriptionId: "",
+                    subscriptionId: "android",
                     onMessage: async request =>
                     {
                         try

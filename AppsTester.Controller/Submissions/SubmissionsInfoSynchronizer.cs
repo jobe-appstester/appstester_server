@@ -89,8 +89,9 @@ namespace AppsTester.Controller.Submissions
                     }
 
                     var submissionId = Guid.NewGuid();
-                    var submissionCheckRequest = new SubmissionCheckRequestEvent(submissionId)
+                    var submissionCheckRequest = new SubmissionCheckRequestEvent
                     {
+                        SubmissionId = submissionId,
                         Files = submission.Files.Where(f => f.Key.EndsWith("_hash"))
                             .ToDictionary(pair => pair.Key.Substring(0, pair.Key.Length - 5), pair => pair.Value),
                         PlainParameters = submission.Parameters
@@ -105,7 +106,7 @@ namespace AppsTester.Controller.Submissions
                     await dbContext.SaveChangesAsync(stoppingToken);
 
                     var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
-                    await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, "",
+                    await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, submission.CheckerSystemName,
                         cancellationToken: stoppingToken);
                 }
                 

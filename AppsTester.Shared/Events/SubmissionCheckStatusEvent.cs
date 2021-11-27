@@ -4,24 +4,16 @@ using Newtonsoft.Json;
 
 namespace AppsTester.Shared.Events
 {
-    [Queue(queueName: "Submissions.CheckStatusEvents")]
+    [Queue(queueName: "Submissions.ChecksStatusEvents")]
     public class SubmissionCheckStatusEvent : SubmissionCheckEvent
     {
         public string SerializedStatus { get; set; }
 
-        public SubmissionCheckStatusEvent(SubmissionCheckRequestEvent requestEvent, object result)
-            : this(submissionId: requestEvent.SubmissionId, result)
-        {
-        }
-
-        public SubmissionCheckStatusEvent(Guid submissionId, object status) : base(submissionId)
-        {
-            SetStatus(status);
-        }
-
-        public void SetStatus(object status)
+        public SubmissionCheckStatusEvent WithStatus(object status)
         {
             SerializedStatus = JsonConvert.SerializeObject(status);
+
+            return this;
         }
 
         public TStatus GetStatus<TStatus>()
