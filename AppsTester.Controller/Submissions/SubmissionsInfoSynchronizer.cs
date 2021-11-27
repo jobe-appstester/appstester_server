@@ -37,10 +37,10 @@ namespace AppsTester.Controller.Submissions
             {
                 var httpClient = new HttpClient();
                 
-                var submissions = await httpClient.GetFromJsonAsync<int[]>(
+                var submissionIds = await httpClient.GetFromJsonAsync<int[]>(
                    $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submissions_to_check&moodlewsrestformat=json", cancellationToken: stoppingToken);
 
-                if (submissions == null || !submissions.Any())
+                if (submissionIds == null || !submissionIds.Any())
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
                     continue;
@@ -49,59 +49,67 @@ namespace AppsTester.Controller.Submissions
                 using var serviceScope = _serviceScopeFactory.CreateScope();
                 await using var dbContext = serviceScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                if (dbContext.SubmissionChecks.Any(sc => sc.MoodleId == submissions.First()))
+                foreach (var submissionId in submissionIds)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
-                    continue;
-                }
+                    if (dbContext.SubmissionChecks.Any(sc => sc.MoodleId == submissionId))
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+                        continue;
+                    }
 
-                var submissionString = await httpClient.GetStringAsync(
-                   $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={submissions.First()}", stoppingToken);
+                    var submissionString = await httpClient.GetStringAsync(
+                        $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={submissionId}",
+                        stoppingToken);
 
-                var submission = JsonConvert.DeserializeObject<Submission>(submissionString);
-                if (submission == null)
-                    continue;
-                
-                var fileCache = serviceScope.ServiceProvider.GetRequiredService<FileCache>();
-
-                var missingFiles = submission
-                    .Files
-                    .Where(pair => pair.Key.EndsWith("_hash"))
-                    .Where(pair => !fileCache.IsKeyExists(pair.Value))
-                    .ToList();
-
-                if (missingFiles.Any())
-                {
-                    submissionString = await httpClient.GetStringAsync(
-                       $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={submissions.First()}&included_file_hashes={string.Join(",", missingFiles.Select(mf => mf.Value))}", stoppingToken);
-
-                    submission = JsonConvert.DeserializeObject<Submission>(submissionString);
+                    var submission = JsonConvert.DeserializeObject<Submission>(submissionString);
                     if (submission == null)
                         continue;
 
-                    foreach (var (fileName, fileHash) in missingFiles)
-                        fileCache.Write(fileHash, Convert.FromBase64String(submission.Files[fileName.Substring(0, fileName.Length - 5)]));
-                }
-                
-                var id = Guid.NewGuid();
-                var submissionCheckRequest = new SubmissionCheckRequest
-                {
-                    Id = id,
-                    Files = submission.Files.Where(f => f.Key.EndsWith("_hash")).ToDictionary(pair => pair.Key.Substring(0, pair.Key.Length - 5), pair => pair.Value),
-                    Parameters = submission.Parameters
-                };
-                var submissionCheck = new SubmissionCheck
-                {
-                    Id = id,
-                    MoodleId = submissions.First(),
-                    SubmissionCheckRequest = submissionCheckRequest,
-                    SendingDateTimeUtc = DateTime.UtcNow
-                };
-                dbContext.SubmissionChecks.Add(submissionCheck);
-                await dbContext.SaveChangesAsync(stoppingToken);
+                    var fileCache = serviceScope.ServiceProvider.GetRequiredService<FileCache>();
 
-                var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
-                await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, "", cancellationToken: stoppingToken);
+                    var missingFiles = submission
+                        .Files
+                        .Where(pair => pair.Key.EndsWith("_hash"))
+                        .Where(pair => !fileCache.IsKeyExists(pair.Value))
+                        .ToList();
+
+                    if (missingFiles.Any())
+                    {
+                        submissionString = await httpClient.GetStringAsync(
+                            $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={submissionId}&included_file_hashes={string.Join(",", missingFiles.Select(mf => mf.Value))}",
+                            stoppingToken);
+
+                        submission = JsonConvert.DeserializeObject<Submission>(submissionString);
+                        if (submission == null)
+                            continue;
+
+                        foreach (var (fileName, fileHash) in missingFiles)
+                            fileCache.Write(fileHash,
+                                Convert.FromBase64String(submission.Files[fileName.Substring(0, fileName.Length - 5)]));
+                    }
+
+                    var id = Guid.NewGuid();
+                    var submissionCheckRequest = new SubmissionCheckRequest
+                    {
+                        Id = id,
+                        Files = submission.Files.Where(f => f.Key.EndsWith("_hash"))
+                            .ToDictionary(pair => pair.Key.Substring(0, pair.Key.Length - 5), pair => pair.Value),
+                        Parameters = submission.Parameters
+                    };
+                    var submissionCheck = new SubmissionCheck
+                    {
+                        Id = id,
+                        MoodleId = submissionId,
+                        SubmissionCheckRequest = submissionCheckRequest,
+                        SendingDateTimeUtc = DateTime.UtcNow
+                    };
+                    dbContext.SubmissionChecks.Add(submissionCheck);
+                    await dbContext.SaveChangesAsync(stoppingToken);
+
+                    var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
+                    await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, "",
+                        cancellationToken: stoppingToken);
+                }
                 
                 await Task.Delay(TimeSpan.FromSeconds(1));
             }
