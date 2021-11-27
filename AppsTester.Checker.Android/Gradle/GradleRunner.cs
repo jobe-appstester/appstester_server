@@ -38,29 +38,29 @@ namespace AppsTester.Checker.Android.Gradle
         public async Task<GradleTaskExecutionResult> ExecuteTaskAsync(
             string tempDirectory, string taskName, CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"Started gradle task \"{taskName}\" in directory: {tempDirectory}");
-
             EnsureGradlewExecutionRights(tempDirectory, taskName);
-
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = Path.Join(tempDirectory, "gradlew"),
-                    Arguments = taskName,
-                    WorkingDirectory = tempDirectory,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    Environment =
-                    {
-                        ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"]
-                    }
-                }
-            };
 
             try
             {
+                _logger.LogInformation($"Started gradle task \"{taskName}\" in directory: {tempDirectory}");
+
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = Path.Join(tempDirectory, "gradlew"),
+                        Arguments = taskName,
+                        WorkingDirectory = tempDirectory,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        Environment =
+                        {
+                            ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"]
+                        }
+                    }
+                };
+
                 await _semaphore.WaitAsync(cancellationToken);
 
                 process.Start();
