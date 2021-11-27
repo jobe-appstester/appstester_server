@@ -88,12 +88,12 @@ namespace AppsTester.Checker.Android
                 return ValidationResult(submissionCheckRequest,
                     "Can't find Gradlew launcher. Please, check template and submission files.");
 
-            var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(temporaryFolder.AbsolutePath, "assembleDebug");
+            var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebug", cancellationToken);
             if (!assembleDebugTaskResult.IsSuccessful)
                 return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
 
             var assembleDebugAndroidTestResult =
-                await _gradleRunner.ExecuteTaskAsync(temporaryFolder.AbsolutePath, "assembleDebugAndroidTest");
+                await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebugAndroidTest", cancellationToken);
             if (!assembleDebugAndroidTestResult.IsSuccessful)
                 return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
 
