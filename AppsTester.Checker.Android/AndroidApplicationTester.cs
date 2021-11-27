@@ -11,6 +11,7 @@ using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Gradle;
 using AppsTester.Checker.Android.Instrumentations;
 using AppsTester.Shared;
+using AppsTester.Shared.Events;
 using AppsTester.Shared.Files;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
@@ -53,51 +54,51 @@ namespace AppsTester.Checker.Android
             _temporaryFolderProvider = temporaryFolderProvider;
         }
 
-        public async Task<SubmissionCheckResult> CheckSubmissionAsync(
-            SubmissionCheckRequest submissionCheckRequest,
+        public async Task<SubmissionCheckResultEvent> CheckSubmissionAsync(
+            SubmissionCheckRequestEvent submissionCheckRequestEvent,
             DeviceData deviceData,
             CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(submissionCheckRequest.Parameters["android_package_name"] as string))
-                return ValidationResult(submissionCheckRequest,
+            if (string.IsNullOrWhiteSpace(submissionCheckRequestEvent.PlainParameters["android_package_name"] as string))
+                return ValidationResult(submissionCheckRequestEvent,
                     "Invalid Android Package Name. Please, check parameter's value in question settings.");
 
-            await SetStatusAsync(submissionCheckRequest, "checking_started");
+            await SetStatusAsync(submissionCheckRequestEvent, "checking_started");
 
             using var temporaryFolder = _temporaryFolderProvider.Get();
 
             _logger.LogInformation($"Generated temporary directory: {temporaryFolder.AbsolutePath}");
 
-            await SetStatusAsync(submissionCheckRequest, "unzip_files");
+            await SetStatusAsync(submissionCheckRequestEvent, "unzip_files");
 
             try
             {
-                await ExtractSubmitFilesAsync(submissionCheckRequest, temporaryFolder);
+                await ExtractSubmitFilesAsync(submissionCheckRequestEvent, temporaryFolder);
             }
             catch (ZipException e)
             {
                 Console.WriteLine(e);
-                return ValidationResult(submissionCheckRequest, "Cannot extract submitted file.");
+                return ValidationResult(submissionCheckRequestEvent, "Cannot extract submitted file.");
             }
 
-            await ExtractTemplateFilesAsync(submissionCheckRequest, temporaryFolder);
+            await ExtractTemplateFilesAsync(submissionCheckRequestEvent, temporaryFolder);
 
-            await SetStatusAsync(submissionCheckRequest, "gradle_build");
+            await SetStatusAsync(submissionCheckRequestEvent, "gradle_build");
 
             if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
-                return ValidationResult(submissionCheckRequest,
+                return ValidationResult(submissionCheckRequestEvent,
                     "Can't find Gradlew launcher. Please, check template and submission files.");
 
             var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebug", cancellationToken);
             if (!assembleDebugTaskResult.IsSuccessful)
-                return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
+                return CompilationErrorResult(submissionCheckRequestEvent, assembleDebugTaskResult);
 
             var assembleDebugAndroidTestResult =
                 await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebugAndroidTest", cancellationToken);
             if (!assembleDebugAndroidTestResult.IsSuccessful)
-                return CompilationErrorResult(submissionCheckRequest, assembleDebugTaskResult);
+                return CompilationErrorResult(submissionCheckRequestEvent, assembleDebugTaskResult);
 
-            await SetStatusAsync(submissionCheckRequest, "install_application");
+            await SetStatusAsync(submissionCheckRequestEvent, "install_application");
 
             var adbClient = _adbClientProvider.GetAdbClient();
             var packageManager = new PackageManager(adbClient, deviceData);
@@ -114,78 +115,77 @@ namespace AppsTester.Checker.Android
             packageManager.InstallPackage(apkFilePath2, true);
             _logger.LogInformation($"Reinstalled androidTest application in directory: {temporaryFolder.AbsolutePath}");
 
-            await SetStatusAsync(submissionCheckRequest, "test");
+            await SetStatusAsync(submissionCheckRequestEvent, "test");
 
             var consoleOutputReceiver = new ConsoleOutputReceiver();
-            _logger.LogInformation($"Started testing of Android application for event {submissionCheckRequest.Id}");
+            _logger.LogInformation($"Started testing of Android application for event {submissionCheckRequestEvent.SubmissionId}");
             await adbClient.ExecuteRemoteCommandAsync(
-                $"am instrument -r -w {submissionCheckRequest.Parameters["android_package_name"]}", deviceData,
+                $"am instrument -r -w {submissionCheckRequestEvent.PlainParameters["android_package_name"]}", deviceData,
                 consoleOutputReceiver, Encoding.UTF8, cancellationToken);
-            _logger.LogInformation($"Completed testing of Android application for event {submissionCheckRequest.Id}");
+            _logger.LogInformation($"Completed testing of Android application for event {submissionCheckRequestEvent.SubmissionId}");
             var consoleOutput = consoleOutputReceiver.ToString();
 
-            return _instrumentationsOutputParser.Parse(submissionCheckRequest, consoleOutput);
+            return _instrumentationsOutputParser.Parse(submissionCheckRequestEvent, consoleOutput);
         }
 
-        private async Task SetStatusAsync(SubmissionCheckRequest submissionCheckRequest, string status)
+        private async Task SetStatusAsync(SubmissionCheckRequestEvent submissionCheckRequestEvent, string status)
         {
             var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
-            var submissionCheckStatusEvent = new SubmissionCheckStatusEvent
-            {
-                SubmissionId = submissionCheckRequest.Id,
-                OccurenceDateTime = DateTime.UtcNow
-            };
-            submissionCheckStatusEvent.SetStatus(new AndroidCheckStatus { Status = status });
+            var submissionCheckStatusEvent = new SubmissionCheckStatusEvent(
+                requestEvent: submissionCheckRequestEvent,
+                result: new AndroidCheckStatus { Status = status });
 
             await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
         }
 
-        private SubmissionCheckResult ValidationResult(
-            SubmissionCheckRequest submissionCheckRequest, string validationMessage)
+        private SubmissionCheckResultEvent ValidationResult(
+            SubmissionCheckRequestEvent submissionCheckRequestEvent, string validationMessage)
         {
-            return new SubmissionCheckResult
-            {
-                Id = submissionCheckRequest.Id,
-                Grade = 0,
-                GradleError = validationMessage,
-                ResultCode = SubmissionCheckResultCode.CompilationError,
-                TestResults = new List<SubmissionCheckTestResult>(),
-                TotalGrade = 0
-            };
+            return new SubmissionCheckResultEvent(
+                requestEvent: submissionCheckRequestEvent,
+                result: new AndroidCheckResult
+                {
+                    Grade = 0,
+                    TotalGrade = 0,
+                    TestResults = new List<SubmissionCheckTestResult>(),
+                    GradleError = validationMessage,
+                    ResultCode = SubmissionCheckResultCode.CompilationError,
+                });
         }
 
-        private SubmissionCheckResult CompilationErrorResult(
-            SubmissionCheckRequest submissionCheckRequest, GradleTaskExecutionResult taskExecutionResult)
+        private SubmissionCheckResultEvent CompilationErrorResult(
+            SubmissionCheckRequestEvent submissionCheckRequestEvent, GradleTaskExecutionResult taskExecutionResult)
         {
             var totalErrorStringBuilder = new StringBuilder();
             totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardOutput);
             totalErrorStringBuilder.AppendLine();
             totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardError);
 
-            return new SubmissionCheckResult
-            {
-                Id = submissionCheckRequest.Id,
-                Grade = 0,
-                TotalGrade = 0,
-                TestResults = new List<SubmissionCheckTestResult>(),
-                GradleError = totalErrorStringBuilder.ToString().Trim(),
-                ResultCode = SubmissionCheckResultCode.CompilationError
-            };
+            return new SubmissionCheckResultEvent(
+                requestEvent: submissionCheckRequestEvent,
+                result: new AndroidCheckResult
+                {
+                    Grade = 0,
+                    TotalGrade = 0,
+                    TestResults = new List<SubmissionCheckTestResult>(),
+                    GradleError = totalErrorStringBuilder.ToString().Trim(),
+                    ResultCode = SubmissionCheckResultCode.CompilationError,
+                });
         }
 
-        private async Task ExtractTemplateFilesAsync(SubmissionCheckRequest submissionCheckRequest,
+        private async Task ExtractTemplateFilesAsync(SubmissionCheckRequestEvent submissionCheckRequestEvent,
             ITemporaryFolder temporaryFolder)
         {
-            var fileStream = await DownloadFileAsync(submissionCheckRequest.Files["template"]);
+            var fileStream = await DownloadFileAsync(submissionCheckRequestEvent.Files["template"]);
             using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read);
             await Task.Run(() => archive.ExtractToDirectory(temporaryFolder.AbsolutePath, true));
             _logger.LogInformation($"Extracted template files into the directory: {temporaryFolder}");
         }
 
-        private async Task ExtractSubmitFilesAsync(SubmissionCheckRequest submissionCheckRequest, ITemporaryFolder temporaryFolder)
+        private async Task ExtractSubmitFilesAsync(SubmissionCheckRequestEvent submissionCheckRequestEvent, ITemporaryFolder temporaryFolder)
         {
-            await using var downloadFileStream = await DownloadFileAsync(submissionCheckRequest.Files["submission"]);
+            await using var downloadFileStream = await DownloadFileAsync(submissionCheckRequestEvent.Files["submission"]);
 
             await using var downloadedFile = new MemoryStream();
             await downloadFileStream.CopyToAsync(downloadedFile);

@@ -3,14 +3,13 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using AppsTester.Shared;
+using AppsTester.Shared.Events;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Newtonsoft.Json;
 
 namespace AppsTester.Controller.Submissions
 {
@@ -34,7 +33,7 @@ namespace AppsTester.Controller.Submissions
         {
             var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
-            await rabbitConnection.PubSub.SubscribeAsync<SubmissionCheckResult>("", async result =>
+            await rabbitConnection.PubSub.SubscribeAsync<SubmissionCheckResultEvent>("", async resultEvent =>
             {
                 try
                 {
@@ -42,27 +41,26 @@ namespace AppsTester.Controller.Submissions
                     
                     var applicationDbContext = serviceScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                     
-                    var subscriptionCheck = await applicationDbContext.SubmissionChecks.FirstOrDefaultAsync(s => s.Id == result.Id, cancellationToken: stoppingToken);
+                    var subscriptionCheck = await applicationDbContext.SubmissionChecks.FirstOrDefaultAsync(s => s.Id == resultEvent.SubmissionId, cancellationToken: stoppingToken);
                     if (subscriptionCheck == null)
                         throw new InvalidOperationException();
 
-                    subscriptionCheck.SubmissionCheckResult = result;
                     await applicationDbContext.SaveChangesAsync(stoppingToken);
 
                     var httpClient = new HttpClient();
 
                     var content = new FormUrlEncodedContent(new[]
                     {
-                        new KeyValuePair<string, string>("result", JsonConvert.SerializeObject(result)),
+                        new KeyValuePair<string, string>("result", resultEvent.SerializedResult),
                     });
                     
-                    var response = await httpClient.PostAsync($"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_set_submission_results&moodlewsrestformat=json&id={subscriptionCheck.MoodleId}", content, stoppingToken);
+                    var response = await httpClient.PostAsync($"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_set_submission_results&moodlewsrestformat=json&id={subscriptionCheck.AttemptId}", content, stoppingToken);
                     var responseContent = await response.Content.ReadAsStringAsync();
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
-                    await rabbitConnection.Scheduler.FuturePublishAsync(result, TimeSpan.FromMinutes(1), stoppingToken);
+                    await rabbitConnection.Scheduler.FuturePublishAsync(resultEvent, TimeSpan.FromMinutes(1), stoppingToken);
                 }
             });
         }

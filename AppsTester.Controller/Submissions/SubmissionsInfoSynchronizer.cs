@@ -5,7 +5,7 @@ using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Controller.Files;
-using AppsTester.Shared;
+using AppsTester.Shared.Events;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
 using Microsoft.Extensions.Configuration;
@@ -37,10 +37,10 @@ namespace AppsTester.Controller.Submissions
             {
                 var httpClient = new HttpClient();
                 
-                var submissionIds = await httpClient.GetFromJsonAsync<int[]>(
+                var attemptIds = await httpClient.GetFromJsonAsync<int[]>(
                    $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submissions_to_check&moodlewsrestformat=json", cancellationToken: stoppingToken);
 
-                if (submissionIds == null || !submissionIds.Any())
+                if (attemptIds == null || !attemptIds.Any())
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
                     continue;
@@ -49,16 +49,16 @@ namespace AppsTester.Controller.Submissions
                 using var serviceScope = _serviceScopeFactory.CreateScope();
                 await using var dbContext = serviceScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                foreach (var submissionId in submissionIds)
+                foreach (var attemptId in attemptIds)
                 {
-                    if (dbContext.SubmissionChecks.Any(sc => sc.MoodleId == submissionId))
+                    if (dbContext.SubmissionChecks.Any(sc => sc.AttemptId == attemptId))
                     {
                         await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
                         continue;
                     }
 
                     var submissionString = await httpClient.GetStringAsync(
-                        $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={submissionId}",
+                        $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={attemptId}",
                         stoppingToken);
 
                     var submission = JsonConvert.DeserializeObject<Submission>(submissionString);
@@ -76,7 +76,7 @@ namespace AppsTester.Controller.Submissions
                     if (missingFiles.Any())
                     {
                         submissionString = await httpClient.GetStringAsync(
-                            $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={submissionId}&included_file_hashes={string.Join(",", missingFiles.Select(mf => mf.Value))}",
+                            $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={attemptId}&included_file_hashes={string.Join(",", missingFiles.Select(mf => mf.Value))}",
                             stoppingToken);
 
                         submission = JsonConvert.DeserializeObject<Submission>(submissionString);
@@ -88,19 +88,17 @@ namespace AppsTester.Controller.Submissions
                                 Convert.FromBase64String(submission.Files[fileName.Substring(0, fileName.Length - 5)]));
                     }
 
-                    var id = Guid.NewGuid();
-                    var submissionCheckRequest = new SubmissionCheckRequest
+                    var submissionId = Guid.NewGuid();
+                    var submissionCheckRequest = new SubmissionCheckRequestEvent(submissionId)
                     {
-                        Id = id,
                         Files = submission.Files.Where(f => f.Key.EndsWith("_hash"))
                             .ToDictionary(pair => pair.Key.Substring(0, pair.Key.Length - 5), pair => pair.Value),
-                        Parameters = submission.Parameters
+                        PlainParameters = submission.Parameters
                     };
                     var submissionCheck = new SubmissionCheck
                     {
-                        Id = id,
-                        MoodleId = submissionId,
-                        SubmissionCheckRequest = submissionCheckRequest,
+                        Id = submissionId,
+                        AttemptId = attemptId,
                         SendingDateTimeUtc = DateTime.UtcNow
                     };
                     dbContext.SubmissionChecks.Add(submissionCheck);

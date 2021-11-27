@@ -1,13 +1,10 @@
-using System;
 using System.Collections.Generic;
-using EasyNetQ;
+using AppsTester.Shared;
 
-namespace AppsTester.Shared
+namespace AppsTester.Checker.Android
 {
-    [Queue(queueName: "Submissions.CheckResults")]
-    public class SubmissionCheckResult
+    public class AndroidCheckResult
     {
-        public Guid Id { get; set; }
         public int Grade { get; set; }
         public int TotalGrade { get; set; }
         public string GradleError { get; set; }

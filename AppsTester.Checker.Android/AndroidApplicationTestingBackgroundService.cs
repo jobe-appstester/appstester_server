@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Devices;
 using AppsTester.Shared;
+using AppsTester.Shared.Events;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
 using Microsoft.Extensions.Hosting;
@@ -31,7 +32,7 @@ namespace AppsTester.Checker.Android
 
             await rabbitConnection
                 .PubSub
-                .SubscribeAsync<SubmissionCheckRequest>(
+                .SubscribeAsync<SubmissionCheckRequestEvent>(
                     subscriptionId: "",
                     onMessage: async request =>
                     {

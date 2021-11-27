@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Shared;
+using AppsTester.Shared.Events;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
 using Microsoft.EntityFrameworkCore;
@@ -55,7 +56,7 @@ namespace AppsTester.Controller.Submissions
                         new KeyValuePair<string, string>("status", statusEvent.SerializedStatus),
                     });
                     
-                    var response = await httpClient.PostAsync($"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_set_submission_status&moodlewsrestformat=json&id={subscriptionCheck.MoodleId}", content, stoppingToken);
+                    var response = await httpClient.PostAsync($"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_set_submission_status&moodlewsrestformat=json&id={subscriptionCheck.AttemptId}", content, stoppingToken);
                     var responseContent = await response.Content.ReadAsStringAsync();
                 }
                 catch (Exception e)
