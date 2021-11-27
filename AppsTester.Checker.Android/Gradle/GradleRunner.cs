@@ -68,7 +68,7 @@ namespace AppsTester.Checker.Android.Gradle
                 var readOutputTask = process.StandardOutput.ReadToEndAsync();
                 var readErrorTask = process.StandardError.ReadToEndAsync();
 
-                await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync());
+                await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync(cancellationToken));
 
                 _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
 
@@ -92,7 +92,7 @@ namespace AppsTester.Checker.Android.Gradle
                 // ReSharper disable once ObjectCreationAsStatement
                 new UnixFileInfo(Path.Join(tempDirectory, "gradlew"))
                 {
-                    FileAccessPermissions = FileAccessPermissions.AllPermissions
+                    FileAccessPermissions = FileAccessPermissions.UserExecute
                 };
             }
             catch (Exception exception)
