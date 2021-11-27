@@ -59,6 +59,8 @@ namespace AppsTester.Checker.Android
                     },
                     cancellationToken: stoppingToken
                 );
+
+            await Task.Delay(millisecondsDelay: -1, stoppingToken);
         }
     }
 }
