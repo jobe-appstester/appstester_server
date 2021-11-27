@@ -2,7 +2,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Devices;
-using AppsTester.Shared;
 using AppsTester.Shared.Events;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
@@ -58,6 +57,7 @@ namespace AppsTester.Checker.Android
                                 request, delay: TimeSpan.FromMinutes(1), cancellationToken: stoppingToken);
                         }
                     },
+                    configure: configuration => configuration.WithTopic("android"),
                     cancellationToken: stoppingToken
                 );
 

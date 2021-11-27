@@ -106,7 +106,7 @@ namespace AppsTester.Controller.Submissions
                     await dbContext.SaveChangesAsync(stoppingToken);
 
                     var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
-                    await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, submission.CheckerSystemName,
+                    await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, topic: submission.CheckerSystemName,
                         cancellationToken: stoppingToken);
                 }
                 
