@@ -24,10 +24,7 @@ namespace AppsTester.Shared.RabbitMq
             if (_rabbitBus != null)
                 return _rabbitBus;
 
-            var connectionString =
-                $"host={_configuration["Rabbit:Host"]};port=5672;prefetchcount=1;username={_configuration["Rabbit:Username"]};password={_configuration["Rabbit:Password"]}";
-
-            _rabbitBus = RabbitHutch.CreateBus(connectionString);
+            _rabbitBus = RabbitHutch.CreateBus(_configuration.GetConnectionString("RabbitMq"));
 
             return _rabbitBus;
         }
