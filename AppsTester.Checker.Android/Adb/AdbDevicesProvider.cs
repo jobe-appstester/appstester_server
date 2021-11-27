@@ -6,7 +6,7 @@ namespace AppsTester.Checker.Android.Adb
 {
     internal interface IAdbDevicesProvider
     {
-        IEnumerable<DeviceData> GetOnlineDevices();
+        List<DeviceData> GetOnlineDevices();
     }
     
     internal class AdbDevicesProvider : IAdbDevicesProvider
@@ -18,7 +18,7 @@ namespace AppsTester.Checker.Android.Adb
             _adbClientProvider = adbClientProvider;
         }
 
-        public IEnumerable<DeviceData> GetOnlineDevices()
+        public List<DeviceData> GetOnlineDevices()
         {
             var adbClient = _adbClientProvider.GetAdbClient();
 

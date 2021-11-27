@@ -1,11 +1,19 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.IO;
+using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
+using AppsTester.Checker.Android.Devices;
 using AppsTester.Checker.Android.Gradle;
 using AppsTester.Checker.Android.Instrumentations;
 using AppsTester.Shared.Files;
 using AppsTester.Shared.RabbitMq;
+using Medallion.Threading;
+using Medallion.Threading.FileSystem;
+using Medallion.Threading.Redis;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using StackExchange.Redis;
 
 namespace AppsTester.Checker.Android
 {
@@ -21,6 +29,28 @@ namespace AppsTester.Checker.Android
                     collection.AddTransient<IAdbDevicesProvider, AdbDevicesProvider>();
                     collection.AddSingleton<IGradleRunner, GradleRunner>();
                     collection.AddSingleton<IInstrumentationsOutputParser,InstrumentationsOutputParser>();
+
+                    collection.AddSingleton<IReservedDevicesProvider, ReservedDevicesProvider>(provider =>
+                    {
+                        var redisConnectionString = provider.GetService<IConfiguration>()
+                            .GetConnectionString(name: "DevicesSynchronizationRedis");
+
+                        IDistributedLockProvider distributedLockProvider;
+                        if (string.IsNullOrWhiteSpace(redisConnectionString))
+                        {
+                            distributedLockProvider =
+                                new FileDistributedSynchronizationProvider(
+                                    new DirectoryInfo(Environment.CurrentDirectory));
+                        }
+                        else
+                        {
+                            distributedLockProvider = new RedisDistributedSynchronizationProvider(
+                                database: ConnectionMultiplexer.Connect(redisConnectionString).GetDatabase());
+                        }
+
+                        return new ReservedDevicesProvider(
+                            provider.GetService<IAdbDevicesProvider>(), distributedLockProvider);
+                    });
 
                     collection.AddTemporaryFolders();
                     collection.AddRabbitMq();
