@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
@@ -40,6 +41,8 @@ namespace AppsTester.Checker.Android.Devices
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
+
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
             }
         }
     }
