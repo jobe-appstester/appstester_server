@@ -33,6 +33,10 @@ namespace AppsTester.Shared.SubmissionChecker
             serviceCollection.AddScoped(provider =>
                 provider.GetRequiredService<ISubmissionResultSetter>() as ISubmissionProcessor);
 
+            serviceCollection.AddScoped<ISubmissionProcessingLogger, SubmissionProcessingLogger<TSubmissionChecker>>();
+            serviceCollection.AddScoped(provider =>
+                provider.GetRequiredService<ISubmissionProcessingLogger>() as ISubmissionProcessor);
+
             return serviceCollection;
         }
     }

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using AppsTester.Shared.SubmissionChecker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Mono.Unix;
@@ -19,13 +20,13 @@ namespace AppsTester.Checker.Android.Gradle
     
     internal class GradleRunner : IGradleRunner
     {
-        private readonly ILogger<GradleRunner> _logger;
+        private readonly ISubmissionProcessingLogger _logger;
         private readonly IConfiguration _configuration;
 
-        public GradleRunner(ILogger<GradleRunner> logger, IConfiguration configuration)
+        public GradleRunner(IConfiguration configuration, ISubmissionProcessingLogger logger)
         {
-            _logger = logger;
             _configuration = configuration;
+            _logger = logger;
         }
 
         public bool IsGradlewInstalledInDirectory(string tempDirectory)

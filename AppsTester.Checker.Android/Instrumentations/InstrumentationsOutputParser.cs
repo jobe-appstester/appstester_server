@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using AppsTester.Shared;
 using AppsTester.Shared.Events;
+using AppsTester.Shared.SubmissionChecker;
 using Microsoft.Extensions.Logging;
 
 namespace AppsTester.Checker.Android.Instrumentations
@@ -15,9 +16,9 @@ namespace AppsTester.Checker.Android.Instrumentations
     
     internal class InstrumentationsOutputParser : IInstrumentationsOutputParser
     {
-        private readonly ILogger<InstrumentationsOutputParser> _logger;
+        private readonly ISubmissionProcessingLogger _logger;
 
-        public InstrumentationsOutputParser(ILogger<InstrumentationsOutputParser> logger)
+        public InstrumentationsOutputParser(ISubmissionProcessingLogger logger)
         {
             _logger = logger;
         }
@@ -97,7 +98,7 @@ namespace AppsTester.Checker.Android.Instrumentations
 
                 if (string.IsNullOrWhiteSpace(consoleOutput)) break;
 
-                //_logger.LogCritical($"Unknown unparsed data for event {submissionCheckRequestEvent.SubmissionId}: {consoleOutput}");
+                _logger.LogCritical("Unknown unparsed data: {consoleOutput}", consoleOutput);
                 break;
             }
 

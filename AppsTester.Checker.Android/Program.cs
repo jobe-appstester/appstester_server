@@ -27,9 +27,10 @@ namespace AppsTester.Checker.Android
                 .ConfigureServices((builder, collection) =>
                 {
                     collection.AddSingleton<IAdbClientProvider, AdbClientProvider>();
-                    collection.AddTransient<IAdbDevicesProvider, AdbDevicesProvider>();
-                    collection.AddSingleton<IGradleRunner, GradleRunner>();
-                    collection.AddSingleton<IInstrumentationsOutputParser,InstrumentationsOutputParser>();
+                    
+                    collection.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
+                    collection.AddScoped<IGradleRunner, GradleRunner>();
+                    collection.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
 
                     collection.Configure<ControllerOptions>(builder.Configuration.GetSection("Controller"));
                     collection.AddSubmissionChecker<AndroidApplicationTester>(checkerSystemName: "android");
