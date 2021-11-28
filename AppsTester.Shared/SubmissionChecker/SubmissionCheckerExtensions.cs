@@ -15,7 +15,7 @@ namespace AppsTester.Shared.SubmissionChecker
                     serviceProvider.GetRequiredService<IRabbitBusProvider>(),
                     serviceProvider.GetRequiredService<IServiceScopeFactory>()));
 
-            serviceCollection.AddScoped<ISubmissionChecker, TSubmissionChecker>();
+            serviceCollection.AddScoped<TSubmissionChecker>();
 
             serviceCollection.AddScoped<ISubmissionPlainParametersProvider, SubmissionPlainParametersProvider>();
             serviceCollection.AddScoped<ISubmissionFilesProvider, SubmissionFilesProvider>();
