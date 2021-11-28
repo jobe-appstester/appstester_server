@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using AppsTester.Shared.Events;
 using AppsTester.Shared.RabbitMq;
 using EasyNetQ;
 
@@ -23,7 +24,14 @@ namespace AppsTester.Shared.SubmissionChecker
         {
             using var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
-            await rabbitConnection.PubSub.PublishAsync(message: status, topic: "", cancellationToken);
+            var submissionCheckStatusEvent =
+                new SubmissionCheckStatusEvent { SubmissionId = SubmissionCheckRequestEvent.SubmissionId }
+                    .WithStatus(status);
+
+            await rabbitConnection.PubSub.PublishAsync(
+                message: submissionCheckStatusEvent,
+                topic: "",
+                cancellationToken);
         }
     }
 }
