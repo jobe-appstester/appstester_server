@@ -61,6 +61,7 @@ namespace AppsTester.Shared.SubmissionChecker
                                 .Scheduler
                                 .FuturePublishAsync(
                                     request,
+                                    configure: configuration => configuration.WithTopic(_checkerSystemName),
                                     delay: TimeSpan.FromMinutes(1),
                                     cancellationToken: stoppingToken);
                         }
