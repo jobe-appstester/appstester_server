@@ -22,7 +22,7 @@ namespace AppsTester.Shared.SubmissionChecker
 
         public async Task SetStatusAsync<TStatus>(TStatus status, CancellationToken cancellationToken)
         {
-            using var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
+            var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
             var submissionCheckStatusEvent =
                 new SubmissionCheckStatusEvent { SubmissionId = SubmissionCheckRequestEvent.SubmissionId }

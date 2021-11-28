@@ -28,7 +28,7 @@ namespace AppsTester.Shared.SubmissionChecker
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            using var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
+            var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
             await rabbitConnection
                 .PubSub
