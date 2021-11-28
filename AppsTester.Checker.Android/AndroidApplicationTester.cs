@@ -71,7 +71,7 @@ namespace AppsTester.Checker.Android
             var fileStream = await _filesProvider.GetFileAsync("template");
             using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read);
             await Task.Run(() => archive.ExtractToDirectory(temporaryFolder.AbsolutePath, true));
-            _logger.LogInformation($"Extracted template files into the directory: {temporaryFolder}");
+            _logger.LogInformation("Extracted template files into the directory: {temporaryFolder}", temporaryFolder);
         }
 
         private async Task ExtractSubmitFilesAsync(ITemporaryFolder temporaryFolder)
@@ -114,7 +114,7 @@ namespace AppsTester.Checker.Android
 
             zipArchive.ExtractToDirectory(temporaryFolder.AbsolutePath, overwriteFiles: true);
 
-            _logger.LogInformation($"Extracted submit files into the directory: {temporaryFolder}");
+            _logger.LogInformation("Extracted submit files into the directory: {temporaryFolder}", temporaryFolder);
         }
 
         public async Task CheckSubmissionAsync(CancellationToken cancellationToken)
@@ -131,7 +131,7 @@ namespace AppsTester.Checker.Android
 
             using var temporaryFolder = _temporaryFolderProvider.Get();
 
-            _logger.LogInformation($"Generated temporary directory: {temporaryFolder.AbsolutePath}");
+            _logger.LogInformation("Generated temporary directory: {temporaryFolder}", temporaryFolder);
 
             await _statusSetter.SetStatusAsync(new ProcessingStatus("unzip_files"), cancellationToken);
 
@@ -193,13 +193,13 @@ namespace AppsTester.Checker.Android
             var apkFilePath = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "debug",
                 "app-debug.apk");
             packageManager.InstallPackage(apkFilePath, true);
-            _logger.LogInformation($"Reinstalled debug application in directory: {temporaryFolder.AbsolutePath}");
+            _logger.LogInformation("Reinstalled debug application in directory: {temporaryFolder}", temporaryFolder);
 
             var apkFilePath2 = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "androidTest",
                 "debug",
                 "app-debug-androidTest.apk");
             packageManager.InstallPackage(apkFilePath2, true);
-            _logger.LogInformation($"Reinstalled androidTest application in directory: {temporaryFolder.AbsolutePath}");
+            _logger.LogInformation("Reinstalled androidTest application in directory: {temporaryFolder}", temporaryFolder);
 
             await _statusSetter.SetStatusAsync(new ProcessingStatus("test"), cancellationToken);
 

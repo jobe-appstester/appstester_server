@@ -39,7 +39,8 @@ namespace AppsTester.Checker.Android.Gradle
         {
             EnsureGradlewExecutionRights(tempDirectory, taskName);
 
-            _logger.LogInformation($"Started gradle task \"{taskName}\" in directory: {tempDirectory}");
+            _logger.LogInformation(
+                "Started gradle task \"{taskName}\" in directory: {tempDirectory}", taskName, tempDirectory);
 
             var process = new Process
             {
@@ -65,7 +66,8 @@ namespace AppsTester.Checker.Android.Gradle
 
             await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync(cancellationToken));
 
-            _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
+            _logger.LogInformation(
+                "Completed gradle task \"{taskName}\" in directory: {tempDirectory}", taskName, tempDirectory);
 
             return new GradleTaskExecutionResult
             (
@@ -87,7 +89,7 @@ namespace AppsTester.Checker.Android.Gradle
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, $"Error happened during execution of Gradle task {taskName}");
+                _logger.LogError(exception, "Error happened during execution of Gradle task {taskName}", taskName);
             }
         }
     }

@@ -32,7 +32,7 @@ namespace AppsTester.Shared.SubmissionChecker
                     eventId,
                     state,
                     exception,
-                    formatter: (s, e) => $"[Submission|{submissionId}]{formatter(s, e)}"
+                    formatter: (s, e) => $"[{submissionId}] {formatter(s, e)}"
                 );
         }
 
