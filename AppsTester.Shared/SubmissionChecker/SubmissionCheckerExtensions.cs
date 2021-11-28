@@ -17,9 +17,16 @@ namespace AppsTester.Shared.SubmissionChecker
 
             serviceCollection.AddScoped<TSubmissionChecker>();
 
+            serviceCollection.AddScoped<ISubmissionProcessor, SubmissionPlainParametersProvider>();
             serviceCollection.AddScoped<ISubmissionPlainParametersProvider, SubmissionPlainParametersProvider>();
+
+            serviceCollection.AddScoped<ISubmissionProcessor, SubmissionFilesProvider>();
             serviceCollection.AddScoped<ISubmissionFilesProvider, SubmissionFilesProvider>();
+
+            serviceCollection.AddScoped<ISubmissionProcessor, SubmissionStatusSetter>();
             serviceCollection.AddScoped<ISubmissionStatusSetter, SubmissionStatusSetter>();
+
+            serviceCollection.AddScoped<ISubmissionProcessor, SubmissionResultSetter>();
             serviceCollection.AddScoped<ISubmissionResultSetter, SubmissionResultSetter>();
 
             return serviceCollection;
