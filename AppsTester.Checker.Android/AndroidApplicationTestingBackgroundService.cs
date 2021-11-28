@@ -57,7 +57,7 @@ namespace AppsTester.Checker.Android
                                 request, delay: TimeSpan.FromMinutes(1), cancellationToken: stoppingToken);
                         }
                     },
-                    configure: configuration => configuration.WithTopic("android"),
+                    configure: configuration => configuration.WithPrefetchCount(1).WithTopic("android"),
                     cancellationToken: stoppingToken
                 );
 

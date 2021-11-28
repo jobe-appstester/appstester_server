@@ -22,8 +22,6 @@ namespace AppsTester.Checker.Android.Gradle
         private readonly ILogger<GradleRunner> _logger;
         private readonly IConfiguration _configuration;
 
-        private readonly SemaphoreSlim _semaphore = new (initialCount: 1);
-
         public GradleRunner(ILogger<GradleRunner> logger, IConfiguration configuration)
         {
             _logger = logger;
@@ -40,49 +38,40 @@ namespace AppsTester.Checker.Android.Gradle
         {
             EnsureGradlewExecutionRights(tempDirectory, taskName);
 
-            try
-            {
-                _logger.LogInformation($"Started gradle task \"{taskName}\" in directory: {tempDirectory}");
+            _logger.LogInformation($"Started gradle task \"{taskName}\" in directory: {tempDirectory}");
 
-                var process = new Process
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
                 {
-                    StartInfo = new ProcessStartInfo
+                    FileName = Path.Join(tempDirectory, "gradlew"),
+                    Arguments = taskName,
+                    WorkingDirectory = tempDirectory,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    Environment =
                     {
-                        FileName = Path.Join(tempDirectory, "gradlew"),
-                        Arguments = taskName,
-                        WorkingDirectory = tempDirectory,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        Environment =
-                        {
-                            ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"]
-                        }
+                        ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"]
                     }
-                };
+                }
+            };
 
-                await _semaphore.WaitAsync(cancellationToken);
+            process.Start();
 
-                process.Start();
+            var readOutputTask = process.StandardOutput.ReadToEndAsync();
+            var readErrorTask = process.StandardError.ReadToEndAsync();
 
-                var readOutputTask = process.StandardOutput.ReadToEndAsync();
-                var readErrorTask = process.StandardError.ReadToEndAsync();
+            await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync(cancellationToken));
 
-                await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync(cancellationToken));
+            _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
 
-                _logger.LogInformation($"Completed gradle task \"{taskName}\" in directory: {tempDirectory}");
-
-                return new GradleTaskExecutionResult
-                (
-                    ExitCode: process.ExitCode,
-                    StandardError: readErrorTask.Result,
-                    StandardOutput: readOutputTask.Result
-                );
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
+            return new GradleTaskExecutionResult
+            (
+                ExitCode: process.ExitCode,
+                StandardError: readErrorTask.Result,
+                StandardOutput: readOutputTask.Result
+            );
         }
 
         private void EnsureGradlewExecutionRights(string tempDirectory, string taskName)
