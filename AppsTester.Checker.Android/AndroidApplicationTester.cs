@@ -1,193 +1,83 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
+using AppsTester.Checker.Android.Devices;
 using AppsTester.Checker.Android.Gradle;
 using AppsTester.Checker.Android.Instrumentations;
-using AppsTester.Shared;
-using AppsTester.Shared.Events;
+using AppsTester.Checker.Android.Results;
+using AppsTester.Checker.Android.Statuses;
 using AppsTester.Shared.Files;
-using AppsTester.Shared.RabbitMq;
-using EasyNetQ;
+using AppsTester.Shared.SubmissionChecker;
 using ICSharpCode.SharpZipLib.Zip;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SharpAdbClient;
 using SharpAdbClient.DeviceCommands;
 
 namespace AppsTester.Checker.Android
 {
-    internal class AndroidApplicationTester
+    internal class AndroidApplicationTester : ISubmissionChecker
     {
-        private readonly IConfiguration _configuration;
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly IAdbClientProvider _adbClientProvider;
-        private readonly IRabbitBusProvider _rabbitBusProvider;
         private readonly IGradleRunner _gradleRunner;
         private readonly IInstrumentationsOutputParser _instrumentationsOutputParser;
         private readonly ILogger<AndroidApplicationTester> _logger;
         private readonly ITemporaryFolderProvider _temporaryFolderProvider;
+        private readonly IReservedDevicesProvider _reservedDevicesProvider;
 
-        public AndroidApplicationTester(
-            IConfiguration configuration,
-            ILogger<AndroidApplicationTester> logger,
-            IHttpClientFactory httpClientFactory,
+        private readonly ISubmissionFilesProvider _filesProvider;
+        private readonly ISubmissionPlainParametersProvider _plainParametersProvider;
+        private readonly ISubmissionResultSetter _resultSetter;
+        private readonly ISubmissionStatusSetter _statusSetter;
+
+        public AndroidApplicationTester(ILogger<AndroidApplicationTester> logger,
             IAdbClientProvider adbClientProvider,
-            IRabbitBusProvider rabbitBusProvider,
             IGradleRunner gradleRunner,
             IInstrumentationsOutputParser instrumentationsOutputParser,
-            ITemporaryFolderProvider temporaryFolderProvider)
+            ITemporaryFolderProvider temporaryFolderProvider, ISubmissionStatusSetter statusSetter, ISubmissionResultSetter resultSetter, ISubmissionPlainParametersProvider plainParametersProvider, ISubmissionFilesProvider filesProvider, IReservedDevicesProvider reservedDevicesProvider)
         {
-            _configuration = configuration;
             _logger = logger;
-            _httpClientFactory = httpClientFactory;
             _adbClientProvider = adbClientProvider;
-            _rabbitBusProvider = rabbitBusProvider;
             _gradleRunner = gradleRunner;
             _instrumentationsOutputParser = instrumentationsOutputParser;
             _temporaryFolderProvider = temporaryFolderProvider;
+            _statusSetter = statusSetter;
+            _resultSetter = resultSetter;
+            _plainParametersProvider = plainParametersProvider;
+            _filesProvider = filesProvider;
+            _reservedDevicesProvider = reservedDevicesProvider;
         }
 
-        public async Task<SubmissionCheckResultEvent> CheckSubmissionAsync(
-            SubmissionCheckRequestEvent submissionCheckRequestEvent,
-            DeviceData deviceData,
-            CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrWhiteSpace(submissionCheckRequestEvent.PlainParameters["android_package_name"] as string))
-                return ValidationResult(submissionCheckRequestEvent,
-                    "Invalid Android Package Name. Please, check parameter's value in question settings.");
-
-            await SetStatusAsync(submissionCheckRequestEvent, "checking_started");
-
-            using var temporaryFolder = _temporaryFolderProvider.Get();
-
-            _logger.LogInformation($"Generated temporary directory: {temporaryFolder.AbsolutePath}");
-
-            await SetStatusAsync(submissionCheckRequestEvent, "unzip_files");
-
-            try
-            {
-                await ExtractSubmitFilesAsync(submissionCheckRequestEvent, temporaryFolder);
-            }
-            catch (ZipException e)
-            {
-                Console.WriteLine(e);
-                return ValidationResult(submissionCheckRequestEvent, "Cannot extract submitted file.");
-            }
-
-            await ExtractTemplateFilesAsync(submissionCheckRequestEvent, temporaryFolder);
-
-            await SetStatusAsync(submissionCheckRequestEvent, "gradle_build");
-
-            if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
-                return ValidationResult(submissionCheckRequestEvent,
-                    "Can't find Gradlew launcher. Please, check template and submission files.");
-
-            var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebug", cancellationToken);
-            if (!assembleDebugTaskResult.IsSuccessful)
-                return CompilationErrorResult(submissionCheckRequestEvent, assembleDebugTaskResult);
-
-            var assembleDebugAndroidTestResult =
-                await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebugAndroidTest", cancellationToken);
-            if (!assembleDebugAndroidTestResult.IsSuccessful)
-                return CompilationErrorResult(submissionCheckRequestEvent, assembleDebugTaskResult);
-
-            await SetStatusAsync(submissionCheckRequestEvent, "install_application");
-
-            var adbClient = _adbClientProvider.GetAdbClient();
-            var packageManager = new PackageManager(adbClient, deviceData);
-
-            foreach (var package in packageManager.Packages.Where(p => p.Key.Contains("profexam")))
-                packageManager.UninstallPackage(package.Key);
-
-            var apkFilePath = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "debug", "app-debug.apk");
-            packageManager.InstallPackage(apkFilePath, true);
-            _logger.LogInformation($"Reinstalled debug application in directory: {temporaryFolder.AbsolutePath}");
-
-            var apkFilePath2 = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "androidTest", "debug",
-                "app-debug-androidTest.apk");
-            packageManager.InstallPackage(apkFilePath2, true);
-            _logger.LogInformation($"Reinstalled androidTest application in directory: {temporaryFolder.AbsolutePath}");
-
-            await SetStatusAsync(submissionCheckRequestEvent, "test");
-
-            var consoleOutputReceiver = new ConsoleOutputReceiver();
-            _logger.LogInformation($"Started testing of Android application for event {submissionCheckRequestEvent.SubmissionId}");
-            await adbClient.ExecuteRemoteCommandAsync(
-                $"am instrument -r -w {submissionCheckRequestEvent.PlainParameters["android_package_name"]}", deviceData,
-                consoleOutputReceiver, Encoding.UTF8, cancellationToken);
-            _logger.LogInformation($"Completed testing of Android application for event {submissionCheckRequestEvent.SubmissionId}");
-            var consoleOutput = consoleOutputReceiver.ToString();
-
-            return _instrumentationsOutputParser.Parse(submissionCheckRequestEvent, consoleOutput);
-        }
-
-        private async Task SetStatusAsync(SubmissionCheckRequestEvent submissionCheckRequestEvent, string status)
-        {
-            var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
-
-            var submissionCheckStatusEvent = new SubmissionCheckStatusEvent
-                {
-                    SubmissionId = submissionCheckRequestEvent.SubmissionId
-                }
-                .WithStatus(new AndroidCheckStatus { Status = status });
-
-            await rabbitConnection.PubSub.PublishAsync(submissionCheckStatusEvent);
-        }
-
-        private SubmissionCheckResultEvent ValidationResult(
-            SubmissionCheckRequestEvent submissionCheckRequestEvent, string validationMessage)
-        {
-            return new SubmissionCheckResultEvent { SubmissionId = submissionCheckRequestEvent.SubmissionId }
-                .WithResult(
-                    new AndroidCheckResult
-                    {
-                        Grade = 0,
-                        TotalGrade = 0,
-                        TestResults = new List<SubmissionCheckTestResult>(),
-                        GradleError = validationMessage,
-                        ResultCode = SubmissionCheckResultCode.CompilationError,
-                    });
-        }
-
-        private SubmissionCheckResultEvent CompilationErrorResult(
-            SubmissionCheckRequestEvent submissionCheckRequestEvent, GradleTaskExecutionResult taskExecutionResult)
+        private async Task CompilationResultAsync(GradleTaskExecutionResult taskExecutionResult, CancellationToken cancellationToken)
         {
             var totalErrorStringBuilder = new StringBuilder();
             totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardOutput);
             totalErrorStringBuilder.AppendLine();
             totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardError);
 
-            return new SubmissionCheckResultEvent { SubmissionId = submissionCheckRequestEvent.SubmissionId }
-                .WithResult(
-                    new AndroidCheckResult
-                    {
-                        Grade = 0,
-                        TotalGrade = 0,
-                        TestResults = new List<SubmissionCheckTestResult>(),
-                        GradleError = totalErrorStringBuilder.ToString().Trim(),
-                        ResultCode = SubmissionCheckResultCode.CompilationError,
-                    });
+            await _resultSetter.SetResultAsync(new CompilationErrorResult(totalErrorStringBuilder.ToString().Trim()), cancellationToken);
         }
 
-        private async Task ExtractTemplateFilesAsync(SubmissionCheckRequestEvent submissionCheckRequestEvent,
-            ITemporaryFolder temporaryFolder)
+        private async Task ValidationResultAsync(string validationErrorMessage, CancellationToken cancellationToken)
         {
-            var fileStream = await DownloadFileAsync(submissionCheckRequestEvent.Files["template"]);
+            await _resultSetter.SetResultAsync(new ValidationErrorResult(validationErrorMessage), cancellationToken);
+        }
+
+        private async Task ExtractTemplateFilesAsync(ITemporaryFolder temporaryFolder)
+        {
+            var fileStream = await _filesProvider.GetFileAsync("template");
             using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read);
             await Task.Run(() => archive.ExtractToDirectory(temporaryFolder.AbsolutePath, true));
             _logger.LogInformation($"Extracted template files into the directory: {temporaryFolder}");
         }
 
-        private async Task ExtractSubmitFilesAsync(SubmissionCheckRequestEvent submissionCheckRequestEvent, ITemporaryFolder temporaryFolder)
+        private async Task ExtractSubmitFilesAsync(ITemporaryFolder temporaryFolder)
         {
-            await using var downloadFileStream = await DownloadFileAsync(submissionCheckRequestEvent.Files["submission"]);
+            await using var downloadFileStream = await _filesProvider.GetFileAsync("submission");
 
             await using var downloadedFile = new MemoryStream();
             await downloadFileStream.CopyToAsync(downloadedFile);
@@ -228,12 +118,98 @@ namespace AppsTester.Checker.Android
             _logger.LogInformation($"Extracted submit files into the directory: {temporaryFolder}");
         }
 
-        private async Task<Stream> DownloadFileAsync(string fileHash)
+        public async Task CheckSubmissionAsync(CancellationToken cancellationToken)
         {
-            using var httpClient = _httpClientFactory.CreateClient();
-            var fileStream = await httpClient.GetStreamAsync(
-                $"{_configuration["Controller:Url"]}/api/v1/files/{fileHash}");
-            return fileStream;
+            if (string.IsNullOrWhiteSpace(_plainParametersProvider.GetParameter<string>("android_package_name")))
+            {
+                await ValidationResultAsync(
+                    "Invalid Android Package Name. Please, check parameter's value in question settings.",
+                    cancellationToken);
+                return;
+            }
+
+            await _statusSetter.SetStatusAsync(new ProcessingStatus("checking_started"), cancellationToken);
+
+            using var temporaryFolder = _temporaryFolderProvider.Get();
+
+            _logger.LogInformation($"Generated temporary directory: {temporaryFolder.AbsolutePath}");
+
+            await _statusSetter.SetStatusAsync(new ProcessingStatus("unzip_files"), cancellationToken);
+
+            try
+            {
+                await ExtractSubmitFilesAsync(temporaryFolder);
+            }
+            catch (ZipException e)
+            {
+                Console.WriteLine(e);
+                
+                await ValidationResultAsync(
+                    "Cannot extract submitted file.",
+                    cancellationToken);
+                return;
+            }
+
+            await ExtractTemplateFilesAsync(temporaryFolder);
+
+            await _statusSetter.SetStatusAsync(new ProcessingStatus("gradle_build"), cancellationToken);
+
+            if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
+            {
+                await ValidationResultAsync(
+                    "Can't find Gradlew launcher. Please, check template and submission files.",
+                    cancellationToken);
+                return;
+            }
+
+            var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebug", cancellationToken);
+            if (!assembleDebugTaskResult.IsSuccessful)
+            {
+                await CompilationResultAsync(assembleDebugTaskResult, cancellationToken);
+                return;
+            }
+
+            var assembleDebugAndroidTestResult =
+                await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebugAndroidTest", cancellationToken);
+            if (!assembleDebugAndroidTestResult.IsSuccessful)
+            {
+                await CompilationResultAsync(assembleDebugTaskResult, cancellationToken);
+                return;
+            }
+
+            await _statusSetter.SetStatusAsync(new ProcessingStatus("install_application"), cancellationToken);
+
+            var adbClient = _adbClientProvider.GetAdbClient();
+
+            using var device = await _reservedDevicesProvider.ReserveDeviceAsync(cancellationToken);
+            var deviceData = device.DeviceData;
+            
+            var packageManager = new PackageManager(adbClient, deviceData);
+
+            foreach (var package in packageManager.Packages.Where(p => p.Key.Contains("profexam")))
+                packageManager.UninstallPackage(package.Key);
+
+            var apkFilePath = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "debug", "app-debug.apk");
+            packageManager.InstallPackage(apkFilePath, true);
+            _logger.LogInformation($"Reinstalled debug application in directory: {temporaryFolder.AbsolutePath}");
+
+            var apkFilePath2 = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "androidTest", "debug",
+                "app-debug-androidTest.apk");
+            packageManager.InstallPackage(apkFilePath2, true);
+            _logger.LogInformation($"Reinstalled androidTest application in directory: {temporaryFolder.AbsolutePath}");
+
+            await _statusSetter.SetStatusAsync(new ProcessingStatus("test"), cancellationToken);
+
+            var consoleOutputReceiver = new ConsoleOutputReceiver();
+            //_logger.LogInformation($"Started testing of Android application for event {submissionCheckRequestEvent.SubmissionId}");
+            await adbClient.ExecuteRemoteCommandAsync(
+                $"am instrument -r -w {_plainParametersProvider.GetParameter<string>("android_package_name")}", deviceData,
+                consoleOutputReceiver, Encoding.UTF8, cancellationToken);
+            //_logger.LogInformation($"Completed testing of Android application for event {submissionCheckRequestEvent.SubmissionId}");
+            var consoleOutput = consoleOutputReceiver.ToString();
+
+            var result = _instrumentationsOutputParser.Parse(consoleOutput);
+            await _resultSetter.SetResultAsync(result.GetResult<AndroidCheckResult>(), cancellationToken);
         }
     }
 }

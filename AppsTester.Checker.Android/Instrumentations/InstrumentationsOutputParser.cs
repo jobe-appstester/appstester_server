@@ -10,7 +10,7 @@ namespace AppsTester.Checker.Android.Instrumentations
 {
     internal interface IInstrumentationsOutputParser
     {
-        SubmissionCheckResultEvent Parse(SubmissionCheckRequestEvent submissionCheckRequestEvent, string consoleOutput);
+        SubmissionCheckResultEvent Parse(string consoleOutput);
     }
     
     internal class InstrumentationsOutputParser : IInstrumentationsOutputParser
@@ -22,7 +22,7 @@ namespace AppsTester.Checker.Android.Instrumentations
             _logger = logger;
         }
 
-        public SubmissionCheckResultEvent Parse(SubmissionCheckRequestEvent submissionCheckRequestEvent, string consoleOutput)
+        public SubmissionCheckResultEvent Parse(string consoleOutput)
         {
             var statusRegexp =
                 new Regex("^INSTRUMENTATION_(STATUS|STATUS_CODE):\\s(.*?)(=(.*?))?((?=INSTRUMENTATION)|(?=onError)|$)",
@@ -97,13 +97,13 @@ namespace AppsTester.Checker.Android.Instrumentations
 
                 if (string.IsNullOrWhiteSpace(consoleOutput)) break;
 
-                _logger.LogCritical($"Unknown unparsed data for event {submissionCheckRequestEvent.SubmissionId}: {consoleOutput}");
+                //_logger.LogCritical($"Unknown unparsed data for event {submissionCheckRequestEvent.SubmissionId}: {consoleOutput}");
                 break;
             }
 
             if (!results.Any() || errors.Any())
             {
-                return new SubmissionCheckResultEvent { SubmissionId = submissionCheckRequestEvent.SubmissionId }
+                return new SubmissionCheckResultEvent {}
                     .WithResult(
                         new AndroidCheckResult
                         {
@@ -118,7 +118,7 @@ namespace AppsTester.Checker.Android.Instrumentations
 
             var totalResults = results.First();
 
-            return new SubmissionCheckResultEvent { SubmissionId = submissionCheckRequestEvent.SubmissionId }
+            return new SubmissionCheckResultEvent {}
                 .WithResult(
                     new AndroidCheckResult
                     {

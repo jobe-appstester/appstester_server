@@ -7,6 +7,7 @@ using AppsTester.Checker.Android.Gradle;
 using AppsTester.Checker.Android.Instrumentations;
 using AppsTester.Shared.Files;
 using AppsTester.Shared.RabbitMq;
+using AppsTester.Shared.SubmissionChecker;
 using Medallion.Threading;
 using Medallion.Threading.FileSystem;
 using Medallion.Threading.Redis;
@@ -23,12 +24,15 @@ namespace AppsTester.Checker.Android
         {
             await Host
                 .CreateDefaultBuilder()
-                .ConfigureServices((_, collection) =>
+                .ConfigureServices((builder, collection) =>
                 {
                     collection.AddSingleton<IAdbClientProvider, AdbClientProvider>();
                     collection.AddTransient<IAdbDevicesProvider, AdbDevicesProvider>();
                     collection.AddSingleton<IGradleRunner, GradleRunner>();
                     collection.AddSingleton<IInstrumentationsOutputParser,InstrumentationsOutputParser>();
+
+                    collection.Configure<ControllerOptions>(builder.Configuration.GetSection("Controller"));
+                    collection.AddSubmissionChecker<AndroidApplicationTester>(checkerSystemName: "android");
 
                     collection.AddSingleton<IReservedDevicesProvider, ReservedDevicesProvider>(provider =>
                     {
@@ -55,9 +59,9 @@ namespace AppsTester.Checker.Android
                     collection.AddTemporaryFolders();
                     collection.AddRabbitMq();
 
-                    collection.AddHostedService<AndroidApplicationTestingBackgroundService>();
+                    //collection.AddHostedService<AndroidApplicationTestingBackgroundService>();
                     collection.AddHttpClient();
-                    collection.AddSingleton<AndroidApplicationTester>();
+                    //collection.AddSingleton<AndroidApplicationTester>();
                 })
                 .RunConsoleAsync();
         }
