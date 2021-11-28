@@ -1,3 +1,4 @@
+using AppsTester.Shared.RabbitMq;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AppsTester.Shared.SubmissionChecker
@@ -8,7 +9,11 @@ namespace AppsTester.Shared.SubmissionChecker
             this IServiceCollection serviceCollection, string checkerSystemName)
             where TSubmissionChecker : class, ISubmissionChecker
         {
-            serviceCollection.AddHostedService<SubmissionCheckerBackgroundService<TSubmissionChecker>>();
+            serviceCollection.AddHostedService(
+                serviceProvider => new SubmissionCheckerBackgroundService<TSubmissionChecker>(
+                    checkerSystemName,
+                    serviceProvider.GetRequiredService<IRabbitBusProvider>(),
+                    serviceProvider.GetRequiredService<IServiceScopeFactory>()));
 
             serviceCollection.AddScoped<ISubmissionChecker, TSubmissionChecker>();
 
