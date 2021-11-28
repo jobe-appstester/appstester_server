@@ -42,7 +42,7 @@ namespace AppsTester.Shared.SubmissionChecker
 
                             var submissionProcessors = scope
                                 .ServiceProvider
-                                .GetServices<SubmissionProcessor>();
+                                .GetServices<ISubmissionProcessor>();
 
                             foreach (var submissionProcessor in submissionProcessors)
                                 submissionProcessor.SetProcessingSubmission(request);
