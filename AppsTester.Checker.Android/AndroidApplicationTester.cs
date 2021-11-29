@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
+using AppsTester.Checker.Android.Apk;
 using AppsTester.Checker.Android.Devices;
 using AppsTester.Checker.Android.Gradle;
 using AppsTester.Checker.Android.Instrumentations;
@@ -28,6 +29,7 @@ namespace AppsTester.Checker.Android
         private readonly ISubmissionProcessingLogger _logger;
         private readonly ITemporaryFolderProvider _temporaryFolderProvider;
         private readonly IReservedDevicesProvider _reservedDevicesProvider;
+        private readonly IApkReader _apkReader;
 
         private readonly ISubmissionFilesProvider _filesProvider;
         private readonly ISubmissionPlainParametersProvider _plainParametersProvider;
@@ -37,7 +39,7 @@ namespace AppsTester.Checker.Android
         public AndroidApplicationTester(IAdbClientProvider adbClientProvider,
             IGradleRunner gradleRunner,
             IInstrumentationsOutputParser instrumentationsOutputParser,
-            ITemporaryFolderProvider temporaryFolderProvider, ISubmissionStatusSetter statusSetter, ISubmissionResultSetter resultSetter, ISubmissionPlainParametersProvider plainParametersProvider, ISubmissionFilesProvider filesProvider, IReservedDevicesProvider reservedDevicesProvider, ISubmissionProcessingLogger logger)
+            ITemporaryFolderProvider temporaryFolderProvider, ISubmissionStatusSetter statusSetter, ISubmissionResultSetter resultSetter, ISubmissionPlainParametersProvider plainParametersProvider, ISubmissionFilesProvider filesProvider, IReservedDevicesProvider reservedDevicesProvider, ISubmissionProcessingLogger logger, IApkReader apkReader)
         {
             _adbClientProvider = adbClientProvider;
             _gradleRunner = gradleRunner;
@@ -49,6 +51,7 @@ namespace AppsTester.Checker.Android
             _filesProvider = filesProvider;
             _reservedDevicesProvider = reservedDevicesProvider;
             _logger = logger;
+            _apkReader = apkReader;
         }
 
         private async Task CompilationResultAsync(GradleTaskExecutionResult taskExecutionResult, CancellationToken cancellationToken)
@@ -187,19 +190,16 @@ namespace AppsTester.Checker.Android
 
             var packageManager = new PackageManager(adbClient, deviceData);
 
-            foreach (var package in packageManager.Packages.Where(p => p.Key.Contains("profexam")))
-                packageManager.UninstallPackage(package.Key);
+            var baseApksPath = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk");
 
-            var apkFilePath = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "debug",
-                "app-debug.apk");
-            packageManager.InstallPackage(apkFilePath, true);
+            var applicationApkFile = Path.Join(baseApksPath, "debug", "app-debug.apk");
+            packageManager.InstallPackage(applicationApkFile, true);
             _logger.LogInformation("Reinstalled debug application in directory: {temporaryFolder}", temporaryFolder);
 
-            var apkFilePath2 = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk", "androidTest",
-                "debug",
-                "app-debug-androidTest.apk");
-            packageManager.InstallPackage(apkFilePath2, true);
-            _logger.LogInformation("Reinstalled androidTest application in directory: {temporaryFolder}", temporaryFolder);
+            var testingApkFile = Path.Join(baseApksPath, "androidTest", "debug", "app-debug-androidTest.apk");
+            packageManager.InstallPackage(testingApkFile, true);
+            _logger.LogInformation("Reinstalled androidTest application in directory: {temporaryFolder}",
+                temporaryFolder);
 
             await _statusSetter.SetStatusAsync(new ProcessingStatus("test"), cancellationToken);
 
@@ -208,13 +208,16 @@ namespace AppsTester.Checker.Android
             _logger.LogInformation("Started testing of Android application");
 
             await adbClient.ExecuteRemoteCommandAsync(
-                $"am instrument -r -w {_plainParametersProvider.GetParameter<string>("android_package_name")}",
+                $"am instrument -r -w {await _apkReader.ReadPackageNameAsync(testingApkFile)}",
                 deviceData,
                 consoleOutputReceiver, Encoding.UTF8, cancellationToken);
 
             _logger.LogInformation("Completed testing of Android application");
 
             var consoleOutput = consoleOutputReceiver.ToString();
+
+            packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(applicationApkFile));
+            packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(testingApkFile));
 
             var result = _instrumentationsOutputParser.Parse(consoleOutput);
             await _resultSetter.SetResultAsync(result.GetResult<AndroidCheckResult>(), cancellationToken);

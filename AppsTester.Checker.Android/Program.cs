@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
+using AppsTester.Checker.Android.Apk;
 using AppsTester.Checker.Android.Devices;
 using AppsTester.Checker.Android.Gradle;
 using AppsTester.Checker.Android.Instrumentations;
@@ -27,7 +28,8 @@ namespace AppsTester.Checker.Android
                 .ConfigureServices((builder, collection) =>
                 {
                     collection.AddSingleton<IAdbClientProvider, AdbClientProvider>();
-                    
+                    collection.AddTransient<IApkReader, ApkReader>();
+
                     collection.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
                     collection.AddScoped<IGradleRunner, GradleRunner>();
                     collection.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
