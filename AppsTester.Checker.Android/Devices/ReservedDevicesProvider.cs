@@ -32,7 +32,8 @@ namespace AppsTester.Checker.Android.Devices
                 foreach (var onlineDevice in onlineDevices)
                 {
                     var distributedSynchronizationHandle = await _distributedLockProvider
-                        .TryAcquireLockAsync(onlineDevice.Serial, cancellationToken: cancellationToken);
+                        .TryAcquireLockAsync(
+                            name: $"devices:reserve:{onlineDevice.Serial}", cancellationToken: cancellationToken);
 
                     if (distributedSynchronizationHandle == null)
                         continue;
