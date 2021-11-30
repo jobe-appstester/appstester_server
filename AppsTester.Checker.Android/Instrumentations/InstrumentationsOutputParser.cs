@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using AppsTester.Shared;
+using AppsTester.Checker.Android.Results;
 using AppsTester.Shared.Events;
 using AppsTester.Shared.SubmissionChecker;
 using Microsoft.Extensions.Logging;
@@ -104,39 +104,35 @@ namespace AppsTester.Checker.Android.Instrumentations
 
             if (!results.Any() || errors.Any())
             {
-                return new SubmissionCheckResultEvent {}
+                return new SubmissionCheckResultEvent()
                     .WithResult(
-                        new AndroidCheckResult
-                        {
-                            Grade = 0,
-                            TotalGrade = 0,
-                            TestResults = new List<SubmissionCheckTestResult>(),
-                            GradleError = consoleOutput + Environment.NewLine +
-                                          string.Join(Environment.NewLine, errors.Select(e => e["message"])),
-                            ResultCode = SubmissionCheckResultCode.CompilationError,
-                        });
+                        new CompilationErrorResult
+                        (
+                            GradleError: consoleOutput + Environment.NewLine +
+                                         string.Join(Environment.NewLine, errors.Select(e => e["message"]))
+                        ));
             }
 
             var totalResults = results.First();
 
-            return new SubmissionCheckResultEvent {}
+            return new SubmissionCheckResultEvent()
                 .WithResult(
-                    new AndroidCheckResult
-                    {
-                        Grade = int.Parse(totalResults.GetValueOrDefault("grade", "0")),
-                        TotalGrade = int.Parse(totalResults.GetValueOrDefault("maxGrade", "0")),
-                        ResultCode = SubmissionCheckResultCode.Success,
-                        TestResults = statuses
+                    new CheckResult
+                    (
+                        Grade: int.Parse(totalResults.GetValueOrDefault("grade", "0")),
+                        TotalGrade: int.Parse(totalResults.GetValueOrDefault("maxGrade", "0")),
+                        ResultCode: CheckResultCode.Success,
+                        TestResults: statuses
                             .Where(s => s["id"] == "AndroidJUnitRunner")
-                            .Select(s => new SubmissionCheckTestResult
-                            {
-                                Class = s["class"],
-                                Test = s["test"],
-                                ResultCode = (SubmissionCheckTestResultCode)int.Parse(s["result_code"]),
-                                Stream = s["stream"]
-                            })
+                            .Select(s => new CheckTestResult
+                            (
+                                Class: s["class"],
+                                Test: s["test"],
+                                ResultCode: (CheckTestResultCode)int.Parse(s["result_code"]),
+                                Stream: s["stream"]
+                            ))
                             .ToList()
-                    });
+                    ));
         }
     }
 }

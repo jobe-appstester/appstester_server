@@ -1,6 +1,6 @@
-namespace AppsTester.Shared
+namespace AppsTester.Checker.Android.Results
 {
-    public enum SubmissionCheckTestResultCode
+    internal enum CheckTestResultCode
     {
         TestRunning = 1,
         TestPassed = 0,

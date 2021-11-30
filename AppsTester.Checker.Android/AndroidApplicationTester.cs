@@ -216,7 +216,7 @@ namespace AppsTester.Checker.Android
             packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(testingApkFile));
 
             var result = _instrumentationsOutputParser.Parse(consoleOutput);
-            await _resultSetter.SetResultAsync(result.GetResult<AndroidCheckResult>(), cancellationToken);
+            await _resultSetter.SetResultAsync(result.GetResult<CheckResult>(), cancellationToken);
         }
     }
 }
