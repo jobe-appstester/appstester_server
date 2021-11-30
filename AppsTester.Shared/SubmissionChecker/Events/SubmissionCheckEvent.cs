@@ -1,6 +1,6 @@
 using System;
 
-namespace AppsTester.Shared.Events
+namespace AppsTester.Shared.SubmissionChecker.Events
 {
     public abstract class SubmissionCheckEvent
     {

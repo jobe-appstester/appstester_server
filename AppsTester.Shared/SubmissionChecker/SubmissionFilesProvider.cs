@@ -30,7 +30,9 @@ namespace AppsTester.Shared.SubmissionChecker
             using var httpClient = _httpClientFactory.CreateClient();
 
             var fileHash = SubmissionCheckRequestEvent.Files[filename];
-            return await httpClient.GetStreamAsync($"{_controllerOptions.Value.Url}/api/v1/files/{fileHash}");
+            return await httpClient.GetStreamAsync(
+                requestUri: $"{_controllerOptions.Value.Url}/api/v1/files/{fileHash}",
+                cancellationToken: SubmissionProcessingContext.CancellationToken);
         }
     }
 }

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using AppsTester.Checker.Android.Results;
-using AppsTester.Shared.Events;
 using AppsTester.Shared.SubmissionChecker;
+using AppsTester.Shared.SubmissionChecker.Events;
 using Microsoft.Extensions.Logging;
 
 namespace AppsTester.Checker.Android.Instrumentations

@@ -1,8 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using AppsTester.Shared.Events;
 using AppsTester.Shared.RabbitMq;
+using AppsTester.Shared.SubmissionChecker.Events;
 using EasyNetQ;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -44,14 +44,17 @@ namespace AppsTester.Shared.SubmissionChecker
                                 .ServiceProvider
                                 .GetServices<ISubmissionProcessor>();
 
+                            var processingContext =
+                                new SubmissionProcessingContext(Event: request, CancellationToken: stoppingToken);
+                            
                             foreach (var submissionProcessor in submissionProcessors)
-                                submissionProcessor.SetProcessingSubmission(request);
+                                submissionProcessor.SetProcessingContext(processingContext);
 
                             var submissionChecker = scope
                                 .ServiceProvider
                                 .GetRequiredService<TSubmissionChecker>();
 
-                            await submissionChecker.CheckSubmissionAsync(stoppingToken);
+                            await submissionChecker.CheckSubmissionAsync(processingContext);
                         }
                         catch (Exception e)
                         {

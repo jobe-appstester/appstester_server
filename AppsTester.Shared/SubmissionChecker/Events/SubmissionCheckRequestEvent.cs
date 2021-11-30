@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using EasyNetQ;
 
-namespace AppsTester.Shared.Events
+namespace AppsTester.Shared.SubmissionChecker.Events
 {
     [Queue(queueName: "Submissions.ChecksRequestEvents")]
     public class SubmissionCheckRequestEvent : SubmissionCheckEvent

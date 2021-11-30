@@ -1,8 +1,7 @@
-using System;
 using EasyNetQ;
 using Newtonsoft.Json;
 
-namespace AppsTester.Shared.Events
+namespace AppsTester.Shared.SubmissionChecker.Events
 {
     [Queue(queueName: "Submissions.ChecksStatusEvents")]
     public class SubmissionCheckStatusEvent : SubmissionCheckEvent

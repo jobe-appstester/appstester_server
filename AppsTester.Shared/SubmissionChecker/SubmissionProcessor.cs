@@ -1,19 +1,21 @@
-using AppsTester.Shared.Events;
+using AppsTester.Shared.SubmissionChecker.Events;
 
 namespace AppsTester.Shared.SubmissionChecker
 {
     internal interface ISubmissionProcessor
     {
-        void SetProcessingSubmission(SubmissionCheckRequestEvent submissionCheckRequestEvent);
+        void SetProcessingContext(SubmissionProcessingContext processingContext);
     }
 
     public abstract class SubmissionProcessor : ISubmissionProcessor
     {
-        protected SubmissionCheckRequestEvent SubmissionCheckRequestEvent;
+        protected SubmissionProcessingContext SubmissionProcessingContext;
 
-        public void SetProcessingSubmission(SubmissionCheckRequestEvent submissionCheckRequestEvent)
+        protected SubmissionCheckRequestEvent SubmissionCheckRequestEvent => SubmissionProcessingContext.Event;
+
+        public void SetProcessingContext(SubmissionProcessingContext processingContext)
         {
-            SubmissionCheckRequestEvent = submissionCheckRequestEvent;
+            SubmissionProcessingContext = processingContext;
         }
     }
 }

@@ -3,7 +3,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Apk;
@@ -21,6 +20,7 @@ using SharpAdbClient.DeviceCommands;
 
 namespace AppsTester.Checker.Android
 {
+    // ReSharper disable once ClassNeverInstantiated.Global
     internal class AndroidApplicationSubmissionChecker : SubmissionChecker
     {
         private readonly IAdbClientProvider _adbClientProvider;
@@ -32,14 +32,13 @@ namespace AppsTester.Checker.Android
         private readonly IApkReader _apkReader;
 
         private readonly ISubmissionFilesProvider _filesProvider;
-        private readonly ISubmissionResultSetter _submissionResultSetter;
-        private readonly ISubmissionStatusSetter _statusSetter;
+        private readonly ISubmissionStatusSetter _submissionStatusSetter;
 
         public AndroidApplicationSubmissionChecker(IAdbClientProvider adbClientProvider,
             IGradleRunner gradleRunner,
             IInstrumentationsOutputParser instrumentationsOutputParser,
             ITemporaryFolderProvider temporaryFolderProvider,
-            ISubmissionStatusSetter statusSetter,
+            ISubmissionStatusSetter submissionStatusSetter,
             ISubmissionResultSetter submissionResultSetter,
             ISubmissionFilesProvider filesProvider,
             IReservedDevicesProvider reservedDevicesProvider,
@@ -51,8 +50,7 @@ namespace AppsTester.Checker.Android
             _gradleRunner = gradleRunner;
             _instrumentationsOutputParser = instrumentationsOutputParser;
             _temporaryFolderProvider = temporaryFolderProvider;
-            _statusSetter = statusSetter;
-            _submissionResultSetter = submissionResultSetter;
+            _submissionStatusSetter = submissionStatusSetter;
             _filesProvider = filesProvider;
             _reservedDevicesProvider = reservedDevicesProvider;
             _logger = logger;
@@ -110,15 +108,15 @@ namespace AppsTester.Checker.Android
             _logger.LogInformation("Extracted submit files into the directory: {temporaryFolder}", temporaryFolder);
         }
 
-        protected override async Task<object> CheckSubmissionCoreAsync(CancellationToken cancellationToken)
+        protected override async Task<object> CheckSubmissionCoreAsync(SubmissionProcessingContext processingContext)
         {
-            await _statusSetter.SetStatusAsync(new ProcessingStatus("checking_started"), cancellationToken);
+            await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("checking_started"));
 
             using var temporaryFolder = _temporaryFolderProvider.Get();
 
             _logger.LogInformation("Generated temporary directory: {temporaryFolder}", temporaryFolder);
 
-            await _statusSetter.SetStatusAsync(new ProcessingStatus("unzip_files"), cancellationToken);
+            await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("unzip_files"));
 
             try
             {
@@ -133,28 +131,31 @@ namespace AppsTester.Checker.Android
 
             await ExtractTemplateFilesAsync(temporaryFolder);
 
-            await _statusSetter.SetStatusAsync(new ProcessingStatus("gradle_build"), cancellationToken);
+            await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("gradle_build"));
 
             if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
                 return new ValidationErrorResult(
                     GradleError: "Can't find Gradlew launcher. Please, check template and submission files.");
 
             var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(
-                tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebug", cancellationToken);
+                tempDirectory: temporaryFolder.AbsolutePath,
+                taskName: "assembleDebug",
+                processingContext.CancellationToken);
             if (!assembleDebugTaskResult.IsSuccessful)
                 return CompilationResult(assembleDebugTaskResult);
 
-            var assembleDebugAndroidTestResult =
-                await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath,
-                    taskName: "assembleDebugAndroidTest", cancellationToken);
+            var assembleDebugAndroidTestResult = await _gradleRunner.ExecuteTaskAsync(
+                tempDirectory: temporaryFolder.AbsolutePath,
+                taskName: "assembleDebugAndroidTest",
+                processingContext.CancellationToken);
             if (!assembleDebugAndroidTestResult.IsSuccessful)
                 return CompilationResult(assembleDebugTaskResult);
 
-            await _statusSetter.SetStatusAsync(new ProcessingStatus("install_application"), cancellationToken);
+            await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
             var adbClient = _adbClientProvider.GetAdbClient();
 
-            using var device = await _reservedDevicesProvider.ReserveDeviceAsync(cancellationToken);
+            using var device = await _reservedDevicesProvider.ReserveDeviceAsync(processingContext.CancellationToken);
             var deviceData = device.DeviceData;
 
             var packageManager = new PackageManager(adbClient, deviceData);
@@ -170,7 +171,7 @@ namespace AppsTester.Checker.Android
             _logger.LogInformation("Reinstalled androidTest application in directory: {temporaryFolder}",
                 temporaryFolder);
 
-            await _statusSetter.SetStatusAsync(new ProcessingStatus("test"), cancellationToken);
+            await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("test"));
 
             var consoleOutputReceiver = new ConsoleOutputReceiver();
 
@@ -179,7 +180,7 @@ namespace AppsTester.Checker.Android
             await adbClient.ExecuteRemoteCommandAsync(
                 $"am instrument -r -w {await _apkReader.ReadPackageNameAsync(testingApkFile)}",
                 deviceData,
-                consoleOutputReceiver, Encoding.UTF8, cancellationToken);
+                consoleOutputReceiver, Encoding.UTF8, processingContext.CancellationToken);
 
             _logger.LogInformation("Completed testing of Android application");
 

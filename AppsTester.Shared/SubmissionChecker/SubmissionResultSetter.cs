@@ -1,14 +1,14 @@
 using System.Threading;
 using System.Threading.Tasks;
-using AppsTester.Shared.Events;
 using AppsTester.Shared.RabbitMq;
+using AppsTester.Shared.SubmissionChecker.Events;
 using EasyNetQ;
 
 namespace AppsTester.Shared.SubmissionChecker
 {
     public interface ISubmissionResultSetter
     {
-        Task SetResultAsync(object result, CancellationToken cancellationToken);
+        Task SetResultAsync(object result);
     }
     
     public class SubmissionResultSetter : SubmissionProcessor, ISubmissionResultSetter
@@ -20,7 +20,7 @@ namespace AppsTester.Shared.SubmissionChecker
             _rabbitBusProvider = rabbitBusProvider;
         }
 
-        public async Task SetResultAsync(object result, CancellationToken cancellationToken)
+        public async Task SetResultAsync(object result)
         {
             var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
@@ -31,7 +31,7 @@ namespace AppsTester.Shared.SubmissionChecker
             await rabbitConnection.PubSub.PublishAsync(
                 message: submissionCheckResultEvent,
                 topic: "",
-                cancellationToken);
+                SubmissionProcessingContext.CancellationToken);
         }
     }
 }

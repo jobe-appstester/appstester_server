@@ -1,11 +1,10 @@
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace AppsTester.Shared.SubmissionChecker
 {
     public interface ISubmissionChecker
     {
-        Task CheckSubmissionAsync(CancellationToken cancellationToken);
+        Task CheckSubmissionAsync(SubmissionProcessingContext processingContext);
     }
 
     public abstract class SubmissionChecker : ISubmissionChecker
@@ -17,13 +16,13 @@ namespace AppsTester.Shared.SubmissionChecker
             _submissionResultSetter = submissionResultSetter;
         }
 
-        public async Task CheckSubmissionAsync(CancellationToken cancellationToken)
+        public async Task CheckSubmissionAsync(SubmissionProcessingContext processingContext)
         {
-            var result = await CheckSubmissionCoreAsync(cancellationToken);
+            var result = await CheckSubmissionCoreAsync(processingContext);
 
-            await _submissionResultSetter.SetResultAsync(result, cancellationToken);
+            await _submissionResultSetter.SetResultAsync(result);
         }
 
-        protected abstract Task<object> CheckSubmissionCoreAsync(CancellationToken cancellationToken);
+        protected abstract Task<object> CheckSubmissionCoreAsync(SubmissionProcessingContext processingContext);
     }
 }
