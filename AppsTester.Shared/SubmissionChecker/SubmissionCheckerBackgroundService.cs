@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Shared.RabbitMq;
 using AppsTester.Shared.SubmissionChecker.Events;
-using EasyNetQ;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -34,7 +33,7 @@ namespace AppsTester.Shared.SubmissionChecker
                 .PubSub
                 .SubscribeAsync<SubmissionCheckRequestEvent>(
                     subscriptionId: _checkerSystemName,
-                    onMessage: async request =>
+                    onMessage: async (request, cancellationToken) =>
                     {
                         try
                         {
@@ -45,7 +44,7 @@ namespace AppsTester.Shared.SubmissionChecker
                                 .GetServices<ISubmissionProcessor>();
 
                             var processingContext =
-                                new SubmissionProcessingContext(Event: request, CancellationToken: stoppingToken);
+                                new SubmissionProcessingContext(Event: request, cancellationToken);
                             
                             foreach (var submissionProcessor in submissionProcessors)
                                 submissionProcessor.SetProcessingContext(processingContext);
@@ -64,9 +63,9 @@ namespace AppsTester.Shared.SubmissionChecker
                                 .Scheduler
                                 .FuturePublishAsync(
                                     request,
-                                    configure: configuration => configuration.WithTopic(_checkerSystemName),
                                     delay: TimeSpan.FromMinutes(1),
-                                    cancellationToken: stoppingToken);
+                                    configure: configuration => configuration.WithTopic(_checkerSystemName),
+                                    cancellationToken);
                         }
                     },
                     configure: configuration => configuration.WithPrefetchCount(1).WithTopic(_checkerSystemName),
