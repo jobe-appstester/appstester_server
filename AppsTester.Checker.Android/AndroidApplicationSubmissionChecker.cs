@@ -21,7 +21,7 @@ using SharpAdbClient.DeviceCommands;
 
 namespace AppsTester.Checker.Android
 {
-    internal class AndroidApplicationTester : ISubmissionChecker
+    internal class AndroidApplicationSubmissionChecker : ISubmissionChecker
     {
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IGradleRunner _gradleRunner;
@@ -35,7 +35,7 @@ namespace AppsTester.Checker.Android
         private readonly ISubmissionResultSetter _resultSetter;
         private readonly ISubmissionStatusSetter _statusSetter;
 
-        public AndroidApplicationTester(IAdbClientProvider adbClientProvider,
+        public AndroidApplicationSubmissionChecker(IAdbClientProvider adbClientProvider,
             IGradleRunner gradleRunner,
             IInstrumentationsOutputParser instrumentationsOutputParser,
             ITemporaryFolderProvider temporaryFolderProvider,

@@ -1,4 +1,10 @@
+using Newtonsoft.Json;
+
 namespace AppsTester.Checker.Android.Results
 {
-    internal record CompilationErrorResult(string GradleError);
+    internal record CompilationErrorResult
+    (
+        [JsonProperty("GradleError")]
+        string GradleError
+    );
 }
