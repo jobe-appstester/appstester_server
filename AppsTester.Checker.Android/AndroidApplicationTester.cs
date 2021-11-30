@@ -122,14 +122,6 @@ namespace AppsTester.Checker.Android
 
         public async Task CheckSubmissionAsync(CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(_plainParametersProvider.GetParameter<string>("android_package_name")))
-            {
-                await ValidationResultAsync(
-                    "Invalid Android Package Name. Please, check parameter's value in question settings.",
-                    cancellationToken);
-                return;
-            }
-
             await _statusSetter.SetStatusAsync(new ProcessingStatus("checking_started"), cancellationToken);
 
             using var temporaryFolder = _temporaryFolderProvider.Get();
