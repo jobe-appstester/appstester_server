@@ -13,12 +13,19 @@ namespace AppsTester.Checker.Android.Adb
 
     internal class AdbClientProvider : IAdbClientProvider
     {
-        private readonly IAdbClient _adbClient;
-        private readonly IDeviceMonitor _deviceMonitor;
+        private IAdbClient _adbClient;
+        private IDeviceMonitor _deviceMonitor;
 
         public AdbClientProvider(IConfiguration configuration, ILogger<AdbClientProvider> logger)
         {
             var dnsEndPoint = new DnsEndPoint(configuration["Adb:Host"], port: 5037);
+
+            SetupAdbClient(configuration, logger, dnsEndPoint);
+            SetupDeviceMonitor(logger, dnsEndPoint);
+        }
+
+        private void SetupAdbClient(IConfiguration configuration, ILogger logger, EndPoint dnsEndPoint)
+        {
             _adbClient = new AdbClient(dnsEndPoint, adbSocketFactory: Factories.AdbSocketFactory);
 
             logger.LogInformation("Connecting to ADB server at {adbHost}:5037.", configuration["Adb:Host"]);
@@ -29,7 +36,10 @@ namespace AppsTester.Checker.Android.Adb
                 "Successfully connected to ADB server at {adbHost}:5037. Version is {version}.",
                 configuration["Adb:Host"],
                 version);
+        }
 
+        private void SetupDeviceMonitor(ILogger logger, EndPoint dnsEndPoint)
+        {
             _deviceMonitor = new DeviceMonitor(new AdbSocket(dnsEndPoint));
 
             _deviceMonitor.DeviceConnected += (_, args) =>
