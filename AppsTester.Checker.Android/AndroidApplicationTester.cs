@@ -32,14 +32,19 @@ namespace AppsTester.Checker.Android
         private readonly IApkReader _apkReader;
 
         private readonly ISubmissionFilesProvider _filesProvider;
-        private readonly ISubmissionPlainParametersProvider _plainParametersProvider;
         private readonly ISubmissionResultSetter _resultSetter;
         private readonly ISubmissionStatusSetter _statusSetter;
 
         public AndroidApplicationTester(IAdbClientProvider adbClientProvider,
             IGradleRunner gradleRunner,
             IInstrumentationsOutputParser instrumentationsOutputParser,
-            ITemporaryFolderProvider temporaryFolderProvider, ISubmissionStatusSetter statusSetter, ISubmissionResultSetter resultSetter, ISubmissionPlainParametersProvider plainParametersProvider, ISubmissionFilesProvider filesProvider, IReservedDevicesProvider reservedDevicesProvider, ISubmissionProcessingLogger logger, IApkReader apkReader)
+            ITemporaryFolderProvider temporaryFolderProvider,
+            ISubmissionStatusSetter statusSetter,
+            ISubmissionResultSetter resultSetter,
+            ISubmissionFilesProvider filesProvider,
+            IReservedDevicesProvider reservedDevicesProvider,
+            ISubmissionProcessingLogger logger,
+            IApkReader apkReader)
         {
             _adbClientProvider = adbClientProvider;
             _gradleRunner = gradleRunner;
@@ -47,7 +52,6 @@ namespace AppsTester.Checker.Android
             _temporaryFolderProvider = temporaryFolderProvider;
             _statusSetter = statusSetter;
             _resultSetter = resultSetter;
-            _plainParametersProvider = plainParametersProvider;
             _filesProvider = filesProvider;
             _reservedDevicesProvider = reservedDevicesProvider;
             _logger = logger;
@@ -185,11 +189,11 @@ namespace AppsTester.Checker.Android
             var baseApksPath = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk");
 
             var applicationApkFile = Path.Join(baseApksPath, "debug", "app-debug.apk");
-            packageManager.InstallPackage(applicationApkFile, true);
+            packageManager.InstallPackage(applicationApkFile, reinstall: false);
             _logger.LogInformation("Reinstalled debug application in directory: {temporaryFolder}", temporaryFolder);
 
             var testingApkFile = Path.Join(baseApksPath, "androidTest", "debug", "app-debug-androidTest.apk");
-            packageManager.InstallPackage(testingApkFile, true);
+            packageManager.InstallPackage(testingApkFile, reinstall: false);
             _logger.LogInformation("Reinstalled androidTest application in directory: {temporaryFolder}",
                 temporaryFolder);
 
