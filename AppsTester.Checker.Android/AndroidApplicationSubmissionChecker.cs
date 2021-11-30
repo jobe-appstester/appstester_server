@@ -21,7 +21,7 @@ using SharpAdbClient.DeviceCommands;
 
 namespace AppsTester.Checker.Android
 {
-    internal class AndroidApplicationSubmissionChecker : ISubmissionChecker
+    internal class AndroidApplicationSubmissionChecker : SubmissionChecker
     {
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IGradleRunner _gradleRunner;
@@ -32,7 +32,7 @@ namespace AppsTester.Checker.Android
         private readonly IApkReader _apkReader;
 
         private readonly ISubmissionFilesProvider _filesProvider;
-        private readonly ISubmissionResultSetter _resultSetter;
+        private readonly ISubmissionResultSetter _submissionResultSetter;
         private readonly ISubmissionStatusSetter _statusSetter;
 
         public AndroidApplicationSubmissionChecker(IAdbClientProvider adbClientProvider,
@@ -40,37 +40,23 @@ namespace AppsTester.Checker.Android
             IInstrumentationsOutputParser instrumentationsOutputParser,
             ITemporaryFolderProvider temporaryFolderProvider,
             ISubmissionStatusSetter statusSetter,
-            ISubmissionResultSetter resultSetter,
+            ISubmissionResultSetter submissionResultSetter,
             ISubmissionFilesProvider filesProvider,
             IReservedDevicesProvider reservedDevicesProvider,
             ISubmissionProcessingLogger logger,
             IApkReader apkReader)
+            : base(submissionResultSetter)
         {
             _adbClientProvider = adbClientProvider;
             _gradleRunner = gradleRunner;
             _instrumentationsOutputParser = instrumentationsOutputParser;
             _temporaryFolderProvider = temporaryFolderProvider;
             _statusSetter = statusSetter;
-            _resultSetter = resultSetter;
+            _submissionResultSetter = submissionResultSetter;
             _filesProvider = filesProvider;
             _reservedDevicesProvider = reservedDevicesProvider;
             _logger = logger;
             _apkReader = apkReader;
-        }
-
-        private async Task CompilationResultAsync(GradleTaskExecutionResult taskExecutionResult, CancellationToken cancellationToken)
-        {
-            var totalErrorStringBuilder = new StringBuilder();
-            totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardOutput);
-            totalErrorStringBuilder.AppendLine();
-            totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardError);
-
-            await _resultSetter.SetResultAsync(new CompilationErrorResult(totalErrorStringBuilder.ToString().Trim()), cancellationToken);
-        }
-
-        private async Task ValidationResultAsync(string validationErrorMessage, CancellationToken cancellationToken)
-        {
-            await _resultSetter.SetResultAsync(new ValidationErrorResult(validationErrorMessage), cancellationToken);
         }
 
         private async Task ExtractTemplateFilesAsync(ITemporaryFolder temporaryFolder)
@@ -124,7 +110,7 @@ namespace AppsTester.Checker.Android
             _logger.LogInformation("Extracted submit files into the directory: {temporaryFolder}", temporaryFolder);
         }
 
-        public async Task CheckSubmissionAsync(CancellationToken cancellationToken)
+        protected override async Task<object> CheckSubmissionCoreAsync(CancellationToken cancellationToken)
         {
             await _statusSetter.SetStatusAsync(new ProcessingStatus("checking_started"), cancellationToken);
 
@@ -142,10 +128,7 @@ namespace AppsTester.Checker.Android
             {
                 Console.WriteLine(e);
 
-                await ValidationResultAsync(
-                    "Cannot extract submitted file.",
-                    cancellationToken);
-                return;
+                return new ValidationErrorResult(GradleError: "Cannot extract submitted file.");
             }
 
             await ExtractTemplateFilesAsync(temporaryFolder);
@@ -153,29 +136,19 @@ namespace AppsTester.Checker.Android
             await _statusSetter.SetStatusAsync(new ProcessingStatus("gradle_build"), cancellationToken);
 
             if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
-            {
-                await ValidationResultAsync(
-                    "Can't find Gradlew launcher. Please, check template and submission files.",
-                    cancellationToken);
-                return;
-            }
+                return new ValidationErrorResult(
+                    GradleError: "Can't find Gradlew launcher. Please, check template and submission files.");
 
             var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(
                 tempDirectory: temporaryFolder.AbsolutePath, taskName: "assembleDebug", cancellationToken);
             if (!assembleDebugTaskResult.IsSuccessful)
-            {
-                await CompilationResultAsync(assembleDebugTaskResult, cancellationToken);
-                return;
-            }
+                return CompilationResult(assembleDebugTaskResult);
 
             var assembleDebugAndroidTestResult =
                 await _gradleRunner.ExecuteTaskAsync(tempDirectory: temporaryFolder.AbsolutePath,
                     taskName: "assembleDebugAndroidTest", cancellationToken);
             if (!assembleDebugAndroidTestResult.IsSuccessful)
-            {
-                await CompilationResultAsync(assembleDebugTaskResult, cancellationToken);
-                return;
-            }
+                return CompilationResult(assembleDebugTaskResult);
 
             await _statusSetter.SetStatusAsync(new ProcessingStatus("install_application"), cancellationToken);
 
@@ -216,7 +189,17 @@ namespace AppsTester.Checker.Android
             packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(testingApkFile));
 
             var result = _instrumentationsOutputParser.Parse(consoleOutput);
-            await _resultSetter.SetResultAsync(result.GetResult<CheckResult>(), cancellationToken);
+            return result.GetResult<CheckResult>();
+        }
+
+        private static CompilationErrorResult CompilationResult(GradleTaskExecutionResult taskExecutionResult)
+        {
+            var totalErrorStringBuilder = new StringBuilder();
+            totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardOutput);
+            totalErrorStringBuilder.AppendLine();
+            totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardError);
+
+            return new CompilationErrorResult(GradleError: totalErrorStringBuilder.ToString().Trim());
         }
     }
 }

@@ -8,7 +8,7 @@ namespace AppsTester.Shared.SubmissionChecker
 {
     public interface ISubmissionResultSetter
     {
-        Task SetResultAsync<TResult>(TResult result, CancellationToken cancellationToken);
+        Task SetResultAsync(object result, CancellationToken cancellationToken);
     }
     
     public class SubmissionResultSetter : SubmissionProcessor, ISubmissionResultSetter
@@ -20,7 +20,7 @@ namespace AppsTester.Shared.SubmissionChecker
             _rabbitBusProvider = rabbitBusProvider;
         }
 
-        public async Task SetResultAsync<TResult>(TResult result, CancellationToken cancellationToken)
+        public async Task SetResultAsync(object result, CancellationToken cancellationToken)
         {
             var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
