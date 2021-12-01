@@ -142,14 +142,14 @@ namespace AppsTester.Checker.Android
                 taskName: "assembleDebug",
                 processingContext.CancellationToken);
             if (!assembleDebugTaskResult.IsSuccessful)
-                return CompilationResult(assembleDebugTaskResult);
+                return new CompilationErrorResult(assembleDebugTaskResult);
 
             var assembleDebugAndroidTestResult = await _gradleRunner.ExecuteTaskAsync(
                 tempDirectory: temporaryFolder.AbsolutePath,
                 taskName: "assembleDebugAndroidTest",
                 processingContext.CancellationToken);
             if (!assembleDebugAndroidTestResult.IsSuccessful)
-                return CompilationResult(assembleDebugTaskResult);
+                return new CompilationErrorResult(assembleDebugTaskResult);
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
@@ -191,16 +191,6 @@ namespace AppsTester.Checker.Android
 
             var result = _instrumentationsOutputParser.Parse(consoleOutput);
             return result.GetResult<CheckResult>();
-        }
-
-        private static CompilationErrorResult CompilationResult(GradleTaskExecutionResult taskExecutionResult)
-        {
-            var totalErrorStringBuilder = new StringBuilder();
-            totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardOutput);
-            totalErrorStringBuilder.AppendLine();
-            totalErrorStringBuilder.AppendLine(taskExecutionResult.StandardError);
-
-            return new CompilationErrorResult(GradleError: totalErrorStringBuilder.ToString().Trim());
         }
     }
 }
