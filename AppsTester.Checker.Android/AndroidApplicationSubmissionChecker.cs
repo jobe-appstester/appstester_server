@@ -125,7 +125,11 @@ namespace AppsTester.Checker.Android
             catch (ZipException e)
             {
                 Console.WriteLine(e);
-
+                return new ValidationErrorResult(ValidationError: "Cannot extract submitted file.");
+            }
+            catch (InvalidDataException e)
+            {
+                Console.WriteLine(e);
                 return new ValidationErrorResult(ValidationError: "Cannot extract submitted file.");
             }
 
