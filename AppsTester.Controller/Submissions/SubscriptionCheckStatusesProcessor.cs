@@ -40,10 +40,10 @@ namespace AppsTester.Controller.Submissions
                     subscriptionId: "",
                     onMessage: async statusEvent =>
                     {
+                        await _semaphore.WaitAsync(stoppingToken);
+
                         try
                         {
-                            await _semaphore.WaitAsync(stoppingToken);
-
                             using var serviceScope = _serviceScopeFactory.CreateScope();
 
                             var applicationDbContext =
@@ -55,8 +55,10 @@ namespace AppsTester.Controller.Submissions
                             if (subscriptionCheck == null)
                                 throw new InvalidOperationException();
 
-                            if (subscriptionCheck.LastStatusVersion <= statusEvent.Version)
-                                subscriptionCheck.LastSerializedStatus = statusEvent.SerializedStatus;
+                            if (subscriptionCheck.LastStatusVersion > statusEvent.Version)
+                                return;
+
+                            subscriptionCheck.LastSerializedStatus = statusEvent.SerializedStatus;
 
                             await applicationDbContext.SaveChangesAsync(stoppingToken);
 
@@ -71,14 +73,16 @@ namespace AppsTester.Controller.Submissions
                                 $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_set_submission_status&moodlewsrestformat=json&id={subscriptionCheck.AttemptId}",
                                 content, stoppingToken);
                             var responseContent = await response.Content.ReadAsStringAsync();
-
-                            _semaphore.Release();
                         }
                         catch (Exception e)
                         {
                             Console.WriteLine(e);
                             await rabbitConnection.Scheduler.FuturePublishAsync(statusEvent, TimeSpan.FromMinutes(1),
                                 stoppingToken);
+                        }
+                        finally
+                        {
+                            _semaphore.Release();
                         }
                     });
         }
