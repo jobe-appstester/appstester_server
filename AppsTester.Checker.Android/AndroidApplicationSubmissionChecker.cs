@@ -135,6 +135,22 @@ namespace AppsTester.Checker.Android
 
             await ExtractTemplateFilesAsync(temporaryFolder);
 
+            await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("validate_submission"));
+
+            var submissionProjects = await _gradleRunner.ExecuteTaskAsync(
+                tempDirectory: temporaryFolder.AbsolutePath,
+                taskName: "projects",
+                cancellationToken: processingContext.CancellationToken);
+
+            if (!submissionProjects.IsSuccessful)
+                return new ValidationErrorResult(ValidationError: "Can't get project list of submission.");
+
+            if (submissionProjects.StandardOutput.Split(Environment.NewLine).Count(l => l.Contains("Project")) > 1)
+                return new ValidationErrorResult(ValidationError: "Submission must have only one project.");
+
+            if (!submissionProjects.StandardOutput.Contains("Project ':app'"))
+                return new ValidationErrorResult(ValidationError: "Submission must have project with the name 'app'.");
+
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("gradle_build"));
 
             if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
