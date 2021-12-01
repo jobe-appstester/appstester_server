@@ -59,6 +59,7 @@ namespace AppsTester.Controller.Submissions
                                 return;
 
                             subscriptionCheck.LastSerializedStatus = statusEvent.SerializedStatus;
+                            subscriptionCheck.LastStatusVersion = statusEvent.Version;
 
                             await applicationDbContext.SaveChangesAsync(stoppingToken);
 
