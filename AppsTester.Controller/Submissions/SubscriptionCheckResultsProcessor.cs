@@ -52,6 +52,7 @@ namespace AppsTester.Controller.Submissions
                             if (subscriptionCheck == null)
                                 throw new InvalidOperationException();
 
+                            subscriptionCheck.SerializedResult = resultEvent.SerializedResult;
                             await applicationDbContext.SaveChangesAsync(stoppingToken);
 
                             var httpClient = new HttpClient();

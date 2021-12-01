@@ -8,6 +8,8 @@ namespace AppsTester.Shared.SubmissionChecker.Events
     {
         public string SerializedStatus { get; set; }
 
+        public int Version { get; set; }
+
         public SubmissionCheckStatusEvent WithStatus(object status)
         {
             SerializedStatus = JsonConvert.SerializeObject(status);

@@ -100,7 +100,8 @@ namespace AppsTester.Controller.Submissions
                     {
                         Id = submissionId,
                         AttemptId = attemptId,
-                        SendingDateTimeUtc = DateTime.UtcNow
+                        SendingDateTimeUtc = DateTime.UtcNow,
+                        SerializedRequest = JsonConvert.SerializeObject(submissionCheckRequest)
                     };
                     dbContext.SubmissionChecks.Add(submissionCheck);
 

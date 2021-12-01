@@ -18,6 +18,7 @@ namespace AppsTester.Controller.Submissions
         private readonly IConfiguration _configuration;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly IRabbitBusProvider _rabbitBusProvider;
+        private readonly SemaphoreSlim _semaphore = new(initialCount: 1);
 
         public SubscriptionCheckStatusesProcessor(
             IConfiguration configuration,
@@ -41,6 +42,8 @@ namespace AppsTester.Controller.Submissions
                     {
                         try
                         {
+                            await _semaphore.WaitAsync(stoppingToken);
+
                             using var serviceScope = _serviceScopeFactory.CreateScope();
 
                             var applicationDbContext =
@@ -52,7 +55,9 @@ namespace AppsTester.Controller.Submissions
                             if (subscriptionCheck == null)
                                 throw new InvalidOperationException();
 
-                            subscriptionCheck.SubmissionCheckStatus = statusEvent.SerializedStatus;
+                            if (subscriptionCheck.LastStatusVersion <= statusEvent.Version)
+                                subscriptionCheck.LastSerializedStatus = statusEvent.SerializedStatus;
+
                             await applicationDbContext.SaveChangesAsync(stoppingToken);
 
                             var httpClient = new HttpClient();
@@ -66,6 +71,8 @@ namespace AppsTester.Controller.Submissions
                                 $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_set_submission_status&moodlewsrestformat=json&id={subscriptionCheck.AttemptId}",
                                 content, stoppingToken);
                             var responseContent = await response.Content.ReadAsStringAsync();
+
+                            _semaphore.Release();
                         }
                         catch (Exception e)
                         {
