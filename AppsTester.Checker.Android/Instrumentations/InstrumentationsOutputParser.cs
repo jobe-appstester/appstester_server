@@ -108,7 +108,7 @@ namespace AppsTester.Checker.Android.Instrumentations
                     .WithResult(
                         new CompilationErrorResult
                         (
-                            GradleError: consoleOutput + Environment.NewLine +
+                            CompilationError: consoleOutput + Environment.NewLine +
                                          string.Join(Environment.NewLine, errors.Select(e => e["message"]))
                         ));
             }
