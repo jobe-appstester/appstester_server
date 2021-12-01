@@ -126,7 +126,7 @@ namespace AppsTester.Checker.Android
             {
                 Console.WriteLine(e);
 
-                return new ValidationErrorResult(GradleError: "Cannot extract submitted file.");
+                return new ValidationErrorResult(ValidationError: "Cannot extract submitted file.");
             }
 
             await ExtractTemplateFilesAsync(temporaryFolder);
@@ -135,7 +135,7 @@ namespace AppsTester.Checker.Android
 
             if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
                 return new ValidationErrorResult(
-                    GradleError: "Can't find Gradlew launcher. Please, check template and submission files.");
+                    ValidationError: "Can't find Gradlew launcher. Please, check template and submission files.");
 
             var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(
                 tempDirectory: temporaryFolder.AbsolutePath,

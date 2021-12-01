@@ -4,7 +4,7 @@ namespace AppsTester.Checker.Android.Results
 {
     internal record ValidationErrorResult
     (
-        [JsonProperty("GradleError")]
-        string GradleError
+        [JsonProperty("ValidationError")]
+        string ValidationError
     );
 }

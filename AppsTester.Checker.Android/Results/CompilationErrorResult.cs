@@ -6,8 +6,8 @@ namespace AppsTester.Checker.Android.Results
 {
     internal record CompilationErrorResult
     (
-        [JsonProperty("GradleError")]
-        string GradleError
+        [JsonProperty("CompilationError")]
+        string CompilationError
     )
     {
         public CompilationErrorResult(GradleTaskExecutionResult taskExecutionResult)
