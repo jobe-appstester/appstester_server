@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,9 +37,21 @@ namespace AppsTester.Controller.Submissions
             while (true)
             {
                 var httpClient = new HttpClient();
-                
-                var attemptIds = await httpClient.GetFromJsonAsync<int[]>(
-                   $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submissions_to_check&moodlewsrestformat=json", cancellationToken: stoppingToken);
+
+                var request = new HttpRequestMessage(
+                    method: HttpMethod.Get,
+                    requestUri:
+                    $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submissions_to_check&moodlewsrestformat=json");
+
+                if (_configuration["Moodle:BasicToken"] != null)
+                {
+                    request.Headers.Authorization =
+                        new AuthenticationHeaderValue("Basic", _configuration["Moodle:BasicToken"]);
+                }
+
+                var response = await httpClient.SendAsync(request, cancellationToken: stoppingToken);
+
+                var attemptIds = await response.Content.ReadFromJsonAsync<int[]>(cancellationToken: stoppingToken);
 
                 if (attemptIds == null || !attemptIds.Any())
                 {
@@ -106,12 +119,13 @@ namespace AppsTester.Controller.Submissions
                     dbContext.SubmissionChecks.Add(submissionCheck);
 
                     var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
-                    await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest, topic: submission.CheckerSystemName,
+                    await rabbitConnection.PubSub.PublishAsync(submissionCheckRequest,
+                        topic: submission.CheckerSystemName,
                         cancellationToken: stoppingToken);
 
                     await dbContext.SaveChangesAsync(stoppingToken);
                 }
-                
+
                 await Task.Delay(TimeSpan.FromSeconds(1));
             }
         }
