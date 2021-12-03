@@ -1,57 +1,41 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Controller.Files;
+using AppsTester.Controller.Moodle;
 using AppsTester.Shared.RabbitMq;
 using AppsTester.Shared.SubmissionChecker.Events;
 using EasyNetQ;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 
 namespace AppsTester.Controller.Submissions
 {
-    public class SubmissionsInfoSynchronizer : BackgroundService
+    internal class SubmissionsInfoSynchronizer : BackgroundService
     {
-        private readonly IConfiguration _configuration;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly IRabbitBusProvider _rabbitBusProvider;
+        private readonly IMoodleCommunicator _moodleCommunicator;
 
         public SubmissionsInfoSynchronizer(
-            IConfiguration configuration,
             IServiceScopeFactory serviceScopeFactory,
-            IRabbitBusProvider rabbitBusProvider)
+            IRabbitBusProvider rabbitBusProvider,
+            IMoodleCommunicator moodleCommunicator)
         {
-            _configuration = configuration;
             _serviceScopeFactory = serviceScopeFactory;
             _rabbitBusProvider = rabbitBusProvider;
+            _moodleCommunicator = moodleCommunicator;
         }
         
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (true)
             {
-                var httpClient = new HttpClient();
-
-                var request = new HttpRequestMessage(
-                    method: HttpMethod.Get,
-                    requestUri:
-                    $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submissions_to_check&moodlewsrestformat=json");
-
-                if (_configuration["Moodle:BasicToken"] != null)
-                {
-                    request.Headers.Authorization =
-                        new AuthenticationHeaderValue("Basic", _configuration["Moodle:BasicToken"]);
-                }
-
-                var response = await httpClient.SendAsync(request, cancellationToken: stoppingToken);
-
-                var attemptIds = await response.Content.ReadFromJsonAsync<int[]>(cancellationToken: stoppingToken);
+                var attemptIds = await _moodleCommunicator.GetFunctionResultAsync<int[]>(
+                    functionName: "local_qtype_get_submissions_to_check", cancellationToken: stoppingToken);
 
                 if (attemptIds == null || !attemptIds.Any())
                 {
@@ -70,13 +54,10 @@ namespace AppsTester.Controller.Submissions
                         continue;
                     }
 
-                    var submissionString = await httpClient.GetStringAsync(
-                        $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={attemptId}",
-                        stoppingToken);
-
-                    var submission = JsonConvert.DeserializeObject<Submission>(submissionString);
-                    if (submission == null)
-                        continue;
+                    var submission = await _moodleCommunicator.GetFunctionResultAsync<Submission>(
+                        functionName: "local_qtype_get_submission",
+                        functionParams: new Dictionary<string, string> { ["id"] = attemptId.ToString() },
+                        cancellationToken: stoppingToken);
 
                     var fileCache = serviceScope.ServiceProvider.GetRequiredService<FileCache>();
 
@@ -88,13 +69,14 @@ namespace AppsTester.Controller.Submissions
 
                     if (missingFiles.Any())
                     {
-                        submissionString = await httpClient.GetStringAsync(
-                            $"{_configuration["Moodle:Url"]}/webservice/rest/server.php?wstoken={_configuration["Moodle:Token"]}&wsfunction=local_qtype_get_submission&moodlewsrestformat=json&id={attemptId}&included_file_hashes={string.Join(",", missingFiles.Select(mf => mf.Value))}",
-                            stoppingToken);
-
-                        submission = JsonConvert.DeserializeObject<Submission>(submissionString);
-                        if (submission == null)
-                            continue;
+                        submission = await _moodleCommunicator.GetFunctionResultAsync<Submission>(
+                            functionName: "local_qtype_get_submission",
+                            functionParams: new Dictionary<string, string>
+                            {
+                                ["id"] = attemptId.ToString(),
+                                ["included_file_hashes"] = string.Join(",", missingFiles.Select(mf => mf.Value))
+                            },
+                            cancellationToken: stoppingToken);
 
                         foreach (var (fileName, fileHash) in missingFiles)
                             fileCache.Write(fileHash,
