@@ -56,9 +56,9 @@ namespace AppsTester.Controller.Submissions
 
                             await _moodleCommunicator.CallFunctionAsync(
                                 functionName: "local_qtype_set_submission_results",
-                                functionParams: new Dictionary<string, string>
+                                functionParams: new Dictionary<string, object>
                                 {
-                                    ["id"] = subscriptionCheck.AttemptId.ToString()
+                                    ["id"] = subscriptionCheck.AttemptId
                                 },
                                 requestParams: new Dictionary<string, string>
                                 {

@@ -56,7 +56,7 @@ namespace AppsTester.Controller.Submissions
 
                     var submission = await _moodleCommunicator.GetFunctionResultAsync<Submission>(
                         functionName: "local_qtype_get_submission",
-                        functionParams: new Dictionary<string, string> { ["id"] = attemptId.ToString() },
+                        functionParams: new Dictionary<string, object> { ["id"] = attemptId },
                         cancellationToken: stoppingToken);
 
                     var fileCache = serviceScope.ServiceProvider.GetRequiredService<FileCache>();
@@ -71,9 +71,9 @@ namespace AppsTester.Controller.Submissions
                     {
                         submission = await _moodleCommunicator.GetFunctionResultAsync<Submission>(
                             functionName: "local_qtype_get_submission",
-                            functionParams: new Dictionary<string, string>
+                            functionParams: new Dictionary<string,object>
                             {
-                                ["id"] = attemptId.ToString(),
+                                ["id"] = attemptId,
                                 ["included_file_hashes"] = string.Join(",", missingFiles.Select(mf => mf.Value))
                             },
                             cancellationToken: stoppingToken);
@@ -108,7 +108,7 @@ namespace AppsTester.Controller.Submissions
                     await dbContext.SaveChangesAsync(stoppingToken);
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(1));
+                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
         }
     }

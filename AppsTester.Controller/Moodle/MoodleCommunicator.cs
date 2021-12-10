@@ -13,12 +13,12 @@ namespace AppsTester.Controller.Moodle
     {
         Task<TResult> GetFunctionResultAsync<TResult>(
             string functionName,
-            IDictionary<string, string> functionParams = null,
+            IDictionary<string, object> functionParams = null,
             CancellationToken cancellationToken = default);
 
         Task CallFunctionAsync(
             string functionName,
-            IDictionary<string, string> functionParams = null,
+            IDictionary<string, object> functionParams = null,
             IDictionary<string, string> requestParams = null,
             CancellationToken cancellationToken = default);
     }
@@ -36,7 +36,7 @@ namespace AppsTester.Controller.Moodle
 
         public async Task<TResult> GetFunctionResultAsync<TResult>(
             string functionName,
-            IDictionary<string, string> functionParams = null,
+            IDictionary<string, object> functionParams = null,
             CancellationToken cancellationToken = default)
         {
             var httpClient = _httpClientFactory.CreateClient();
@@ -50,7 +50,7 @@ namespace AppsTester.Controller.Moodle
 
             if (functionParams != null)
                 foreach (var (name, value) in functionParams)
-                    queryParams.Add(name, value);
+                    queryParams.Add(name, value.ToString());
 
             var requestUri = $"{_configuration["Moodle:Url"]}/webservice/rest/server.php";
             var uriWithParams = QueryHelpers.AddQueryString(requestUri, queryParams);
@@ -71,7 +71,7 @@ namespace AppsTester.Controller.Moodle
 
         public async Task CallFunctionAsync(
             string functionName,
-            IDictionary<string, string> functionParams = null,
+            IDictionary<string, object> functionParams = null,
             IDictionary<string, string> requestParams = null,
             CancellationToken cancellationToken = default)
         {
@@ -86,7 +86,7 @@ namespace AppsTester.Controller.Moodle
 
             if (functionParams != null)
                 foreach (var (name, value) in functionParams)
-                    queryParams.Add(name, value);
+                    queryParams.Add(name, value.ToString());
 
             var requestUri = $"{_configuration["Moodle:Url"]}/webservice/rest/server.php";
             var uriWithParams = QueryHelpers.AddQueryString(requestUri, queryParams);
