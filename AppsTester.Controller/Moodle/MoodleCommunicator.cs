@@ -102,7 +102,7 @@ namespace AppsTester.Controller.Moodle
             if (requestParams != null)
                 request.Content = new FormUrlEncodedContent(requestParams);
 
-            using var response = await httpClient.SendAsync(request, cancellationToken);
+            await httpClient.SendAsync(request, cancellationToken);
         }
     }
 }

@@ -27,7 +27,7 @@ namespace AppsTester.Shared.SubmissionChecker
             if (!SubmissionCheckRequestEvent.Files.ContainsKey(filename))
                 throw new ArgumentException($"Can't find file with name \"{filename}\"");
             
-            using var httpClient = _httpClientFactory.CreateClient();
+            var httpClient = _httpClientFactory.CreateClient();
 
             var fileHash = SubmissionCheckRequestEvent.Files[filename];
             return await httpClient.GetStreamAsync(
