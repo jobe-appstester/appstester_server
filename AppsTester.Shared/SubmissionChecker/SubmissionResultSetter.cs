@@ -1,4 +1,3 @@
-using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Shared.RabbitMq;
 using AppsTester.Shared.SubmissionChecker.Events;
@@ -10,14 +9,18 @@ namespace AppsTester.Shared.SubmissionChecker
     {
         Task SetResultAsync(object result);
     }
-    
-    public class SubmissionResultSetter : SubmissionProcessor, ISubmissionResultSetter
+
+    public class SubmissionResultSetter : ISubmissionResultSetter
     {
         private readonly IRabbitBusProvider _rabbitBusProvider;
+        private readonly ISubmissionProcessingContextAccessor _processingContextAccessor;
 
-        public SubmissionResultSetter(IRabbitBusProvider rabbitBusProvider)
+        public SubmissionResultSetter(
+            IRabbitBusProvider rabbitBusProvider,
+            ISubmissionProcessingContextAccessor processingContextAccessor)
         {
             _rabbitBusProvider = rabbitBusProvider;
+            _processingContextAccessor = processingContextAccessor;
         }
 
         public async Task SetResultAsync(object result)
@@ -25,13 +28,16 @@ namespace AppsTester.Shared.SubmissionChecker
             var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
 
             var submissionCheckResultEvent =
-                new SubmissionCheckResultEvent { SubmissionId = SubmissionCheckRequestEvent.SubmissionId }
+                new SubmissionCheckResultEvent
+                    {
+                        SubmissionId = _processingContextAccessor.ProcessingContext.Event.SubmissionId
+                    }
                     .WithResult(result);
 
             await rabbitConnection.PubSub.PublishAsync(
                 message: submissionCheckResultEvent,
                 topic: "",
-                SubmissionProcessingContext.CancellationToken);
+                _processingContextAccessor.ProcessingContext.CancellationToken);
         }
     }
 }

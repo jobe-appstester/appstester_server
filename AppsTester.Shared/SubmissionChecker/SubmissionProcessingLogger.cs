@@ -7,15 +7,19 @@ namespace AppsTester.Shared.SubmissionChecker
     {
     }
 
-    internal class SubmissionProcessingLogger<TSubmissionChecker> : SubmissionProcessor, ISubmissionProcessingLogger
+    internal class SubmissionProcessingLogger<TSubmissionChecker> : ISubmissionProcessingLogger
         where TSubmissionChecker : ISubmissionChecker
     {
         private readonly ILogger<TSubmissionChecker> _logger;
+        private readonly ISubmissionProcessingContextAccessor _processingContextAccessor;
 
         // ReSharper disable once ContextualLoggerProblem
-        public SubmissionProcessingLogger(ILogger<TSubmissionChecker> logger)
+        public SubmissionProcessingLogger(
+            ILogger<TSubmissionChecker> logger,
+            ISubmissionProcessingContextAccessor processingContextAccessor)
         {
             _logger = logger;
+            _processingContextAccessor = processingContextAccessor;
         }
 
         public void Log<TState>(
@@ -25,7 +29,7 @@ namespace AppsTester.Shared.SubmissionChecker
             Exception exception,
             Func<TState, Exception, string> formatter)
         {
-            var submissionId = SubmissionCheckRequestEvent.SubmissionId;
+            var submissionId = _processingContextAccessor.ProcessingContext.Event.SubmissionId;
             _logger
                 .Log(
                     logLevel,

@@ -10,29 +10,34 @@ namespace AppsTester.Shared.SubmissionChecker
     {
         Task<Stream> GetFileAsync(string filename);
     }
-    
-    internal class SubmissionFilesProvider : SubmissionProcessor, ISubmissionFilesProvider
+
+    internal class SubmissionFilesProvider : ISubmissionFilesProvider
     {
         private readonly IOptions<ControllerOptions> _controllerOptions;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ISubmissionProcessingContextAccessor _processingContextAccessor;
 
-        public SubmissionFilesProvider(IOptions<ControllerOptions> controllerOptions, IHttpClientFactory httpClientFactory)
+        public SubmissionFilesProvider(
+            IOptions<ControllerOptions> controllerOptions,
+            IHttpClientFactory httpClientFactory,
+            ISubmissionProcessingContextAccessor processingContextAccessor)
         {
             _controllerOptions = controllerOptions;
             _httpClientFactory = httpClientFactory;
+            _processingContextAccessor = processingContextAccessor;
         }
 
         public async Task<Stream> GetFileAsync(string filename)
         {
-            if (!SubmissionCheckRequestEvent.Files.ContainsKey(filename))
+            if (!_processingContextAccessor.ProcessingContext.Event.Files.ContainsKey(filename))
                 throw new ArgumentException($"Can't find file with name \"{filename}\"");
-            
+
             var httpClient = _httpClientFactory.CreateClient();
 
-            var fileHash = SubmissionCheckRequestEvent.Files[filename];
+            var fileHash = _processingContextAccessor.ProcessingContext.Event.Files[filename];
             return await httpClient.GetStreamAsync(
                 requestUri: $"{_controllerOptions.Value.Url}/api/v1/files/{fileHash}",
-                cancellationToken: SubmissionProcessingContext.CancellationToken);
+                cancellationToken: _processingContextAccessor.ProcessingContext.CancellationToken);
         }
     }
 }

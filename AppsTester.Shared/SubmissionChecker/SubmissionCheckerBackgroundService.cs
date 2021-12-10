@@ -39,15 +39,15 @@ namespace AppsTester.Shared.SubmissionChecker
                         {
                             using var scope = _serviceScopeFactory.CreateScope();
 
-                            var submissionProcessors = scope
-                                .ServiceProvider
-                                .GetServices<ISubmissionProcessor>();
-
                             var processingContext =
                                 new SubmissionProcessingContext(Event: request, cancellationToken);
-                            
-                            foreach (var submissionProcessor in submissionProcessors)
-                                submissionProcessor.SetProcessingContext(processingContext);
+
+                            var submissionProcessingContextAccessor = scope
+                                .ServiceProvider
+                                .GetService<ISubmissionProcessingContextAccessor>();
+
+                            ((SubmissionProcessingContextAccessor)submissionProcessingContextAccessor)!
+                                .SetProcessingContext(processingContext);
 
                             var submissionChecker = scope
                                 .ServiceProvider

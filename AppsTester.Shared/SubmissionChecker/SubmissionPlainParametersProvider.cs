@@ -3,19 +3,26 @@ using System;
 namespace AppsTester.Shared.SubmissionChecker
 {
     public delegate bool Validator<in TParameter>(TParameter parameter);
-    
+
     public interface ISubmissionPlainParametersProvider
     {
         bool IsValid<TParameter>(string name, Validator<TParameter> validator = null);
 
         TParameter GetParameter<TParameter>(string name);
     }
-    
-    internal class SubmissionPlainParametersProvider : SubmissionProcessor, ISubmissionPlainParametersProvider
+
+    internal class SubmissionPlainParametersProvider : ISubmissionPlainParametersProvider
     {
+        private readonly ISubmissionProcessingContextAccessor _processingContextAccessor;
+
+        public SubmissionPlainParametersProvider(ISubmissionProcessingContextAccessor processingContextAccessor)
+        {
+            _processingContextAccessor = processingContextAccessor;
+        }
+
         public bool IsValid<TParameter>(string name, Validator<TParameter> validator = null)
         {
-            var plainParameter = SubmissionCheckRequestEvent.PlainParameters[name];
+            var plainParameter = _processingContextAccessor.ProcessingContext.Event.PlainParameters[name];
             if (plainParameter is TParameter parameter)
             {
                 return validator?.Invoke(parameter) ?? true;
@@ -26,10 +33,10 @@ namespace AppsTester.Shared.SubmissionChecker
 
         public TParameter GetParameter<TParameter>(string name)
         {
-            if (!SubmissionCheckRequestEvent.PlainParameters.ContainsKey(name))
+            if (!_processingContextAccessor.ProcessingContext.Event.PlainParameters.ContainsKey(name))
                 throw new ArgumentException($"Can't find plain parameter with name \"{name}\"");
 
-            var plainParameter = SubmissionCheckRequestEvent.PlainParameters[name];
+            var plainParameter = _processingContextAccessor.ProcessingContext.Event.PlainParameters[name];
             if (plainParameter is not TParameter parameter)
             {
                 throw new ArgumentException(
