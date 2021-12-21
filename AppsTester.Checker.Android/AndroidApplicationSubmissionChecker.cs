@@ -59,9 +59,44 @@ namespace AppsTester.Checker.Android
 
         private async Task ExtractTemplateFilesAsync(ITemporaryFolder temporaryFolder)
         {
-            var fileStream = await _filesProvider.GetFileAsync("template");
-            using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read);
-            await Task.Run(() => archive.ExtractToDirectory(temporaryFolder.AbsolutePath, true));
+            var downloadFileStream = await _filesProvider.GetFileAsync("template");
+
+            await using var downloadedFile = new MemoryStream();
+            await downloadFileStream.CopyToAsync(downloadedFile);
+
+            using (var mutableZipArchive = new ZipArchive(downloadedFile, ZipArchiveMode.Update, leaveOpen: true))
+            {
+                var levelsToReduce = mutableZipArchive
+                    .Entries
+                    .Where(e => e.Length != 0)
+                    .Min(e => e.FullName.Count(c => c == '/'));
+
+                if (levelsToReduce > 0)
+                {
+                    var entriesToMove = mutableZipArchive.Entries.ToList();
+                    foreach (var entryToMove in entriesToMove)
+                    {
+                        var newEntryPath = string.Join('/', entryToMove.FullName.Split('/').Skip(levelsToReduce));
+                        if (newEntryPath == string.Empty)
+                            continue;
+
+                        var movedEntry = mutableZipArchive.CreateEntry(newEntryPath);
+
+                        await using (var entryToMoveStream = entryToMove.Open())
+                        await using (var movedEntryStream = movedEntry.Open())
+                            await entryToMoveStream.CopyToAsync(movedEntryStream);
+
+                        entryToMove.Delete();
+                    }
+                }
+            }
+
+            downloadedFile.Seek(offset: 0, SeekOrigin.Begin);
+
+            using var zipArchive = new ZipArchive(downloadedFile);
+
+            zipArchive.ExtractToDirectory(temporaryFolder.AbsolutePath, overwriteFiles: true);
+
             _logger.LogInformation("Extracted template files into the directory: {temporaryFolder}", temporaryFolder);
         }
 
