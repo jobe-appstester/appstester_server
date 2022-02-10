@@ -170,6 +170,10 @@ namespace AppsTester.Checker.Android
 
             await ExtractTemplateFilesAsync(temporaryFolder);
 
+            if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
+                return new ValidationErrorResult(
+                    ValidationError: "Can't find Gradlew launcher. Please, check template and submission files.");
+
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("validate_submission"));
 
             var submissionProjects = await _gradleRunner.ExecuteTaskAsync(
@@ -178,7 +182,7 @@ namespace AppsTester.Checker.Android
                 cancellationToken: processingContext.CancellationToken);
 
             if (!submissionProjects.IsSuccessful)
-                return new ValidationErrorResult(ValidationError: "Can't get project list of submission.");
+                return new ValidationErrorResult(ValidationError: $"Can't get project list of submission: {Environment.NewLine}{Environment.NewLine}StdErr: {Environment.NewLine}{submissionProjects.StandardError}{Environment.NewLine}{Environment.NewLine}StdOut: {Environment.NewLine}{submissionProjects.StandardOutput}");
 
             if (submissionProjects.StandardOutput.Split(Environment.NewLine).Count(l => l.Contains("Project")) > 1)
                 return new ValidationErrorResult(ValidationError: "Submission must have only one project.");
@@ -187,10 +191,6 @@ namespace AppsTester.Checker.Android
                 return new ValidationErrorResult(ValidationError: "Submission must have project with the name 'app'.");
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("gradle_build"));
-
-            if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
-                return new ValidationErrorResult(
-                    ValidationError: "Can't find Gradlew launcher. Please, check template and submission files.");
 
             var assembleDebugTaskResult = await _gradleRunner.ExecuteTaskAsync(
                 tempDirectory: temporaryFolder.AbsolutePath,
