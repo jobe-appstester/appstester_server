@@ -204,7 +204,7 @@ namespace AppsTester.Checker.Android
                 taskName: "assembleDebugAndroidTest",
                 processingContext.CancellationToken);
             if (!assembleDebugAndroidTestResult.IsSuccessful)
-                return new CompilationErrorResult(assembleDebugTaskResult);
+                return new CompilationErrorResult(assembleDebugAndroidTestResult );
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
