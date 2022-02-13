@@ -218,13 +218,19 @@ namespace AppsTester.Checker.Android
             var baseApksPath = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk");
 
             var applicationApkFile = Path.Join(baseApksPath, "debug", "app-debug.apk");
-            packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(applicationApkFile));
+
+            var applicationPackageName = await _apkReader.ReadPackageNameAsync(applicationApkFile);
+            if (packageManager.Packages.ContainsKey(applicationPackageName))
+                packageManager.UninstallPackage(applicationPackageName);
 
             packageManager.InstallPackage(applicationApkFile, reinstall: false);
             _logger.LogInformation("Reinstalled debug application in directory: {temporaryFolder}", temporaryFolder);
 
             var testingApkFile = Path.Join(baseApksPath, "androidTest", "debug", "app-debug-androidTest.apk");
-            packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(testingApkFile));
+
+            var testingPackageName = await _apkReader.ReadPackageNameAsync(testingApkFile);
+            if (packageManager.Packages.ContainsKey(testingPackageName))
+                packageManager.UninstallPackage(testingPackageName);
 
             packageManager.InstallPackage(testingApkFile, reinstall: false);
             _logger.LogInformation("Reinstalled androidTest application in directory: {temporaryFolder}",
