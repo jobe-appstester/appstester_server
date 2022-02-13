@@ -218,10 +218,14 @@ namespace AppsTester.Checker.Android
             var baseApksPath = Path.Join(temporaryFolder.AbsolutePath, "app", "build", "outputs", "apk");
 
             var applicationApkFile = Path.Join(baseApksPath, "debug", "app-debug.apk");
+            packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(applicationApkFile));
+
             packageManager.InstallPackage(applicationApkFile, reinstall: false);
             _logger.LogInformation("Reinstalled debug application in directory: {temporaryFolder}", temporaryFolder);
 
             var testingApkFile = Path.Join(baseApksPath, "androidTest", "debug", "app-debug-androidTest.apk");
+            packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(testingApkFile));
+
             packageManager.InstallPackage(testingApkFile, reinstall: false);
             _logger.LogInformation("Reinstalled androidTest application in directory: {temporaryFolder}",
                 temporaryFolder);
@@ -240,9 +244,6 @@ namespace AppsTester.Checker.Android
             _logger.LogInformation("Completed testing of Android application");
 
             var consoleOutput = consoleOutputReceiver.ToString();
-
-            packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(applicationApkFile));
-            packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(testingApkFile));
 
             var result = _instrumentationsOutputParser.Parse(consoleOutput);
             return result.GetResult<CheckResult>();
