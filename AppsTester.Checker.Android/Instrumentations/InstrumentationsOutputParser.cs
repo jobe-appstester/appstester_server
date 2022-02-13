@@ -28,13 +28,13 @@ namespace AppsTester.Checker.Android.Instrumentations
             _logger.LogInformation(consoleOutput);
             
             var statusRegexp =
-                new Regex("^INSTRUMENTATION_(STATUS|STATUS_CODE):\\s(.*?)(=(.*?))?((?=INSTRUMENTATION)|(?=onError)|$)",
+                new Regex("^INSTRUMENTATION_(STATUS|STATUS_CODE):\\s(.*?)(=(.*?))?((?=\\sINSTRUMENTATION)|(?=\\sonError)|$)",
                     RegexOptions.Singleline);
             var resultRegexp =
-                new Regex("^INSTRUMENTATION_(RESULT|CODE):\\s(.*?)(=(.*?))?((?=INSTRUMENTATION)|(?=onError)|$)",
+                new Regex("^INSTRUMENTATION_(RESULT|CODE):\\s(.*?)(=(.*?))?((?=\\sINSTRUMENTATION)|(?=\\sonError)|$)",
                     RegexOptions.Singleline);
             var onErrorRegexp =
-                new Regex("^onError:\\scommandError=(.*?)\\smessage=(.*?)((?=INSTRUMENTATION)|(?=onError)|$)",
+                new Regex("^onError:\\scommandError=(.*?)\\smessage=(.*?)((?=\\sINSTRUMENTATION)|(?=\\sonError)|$)",
                     RegexOptions.Singleline);
 
             var statusResults = new Dictionary<string, string>();
