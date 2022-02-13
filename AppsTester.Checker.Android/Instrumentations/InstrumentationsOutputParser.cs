@@ -25,6 +25,8 @@ namespace AppsTester.Checker.Android.Instrumentations
 
         public SubmissionCheckResultEvent Parse(string consoleOutput)
         {
+            _logger.LogInformation(consoleOutput);
+            
             var statusRegexp =
                 new Regex("^INSTRUMENTATION_(STATUS|STATUS_CODE):\\s(.*?)(=(.*?))?((?=INSTRUMENTATION)|(?=onError)|$)",
                     RegexOptions.Singleline);
