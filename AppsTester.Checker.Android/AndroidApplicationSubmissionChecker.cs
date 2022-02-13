@@ -229,7 +229,7 @@ namespace AppsTester.Checker.Android
             }
 
             packageManager.InstallPackage(applicationApkFile, reinstall: false);
-            _logger.LogInformation("Reinstalled debug application in directory: {temporaryFolder}", temporaryFolder);
+            _logger.LogInformation("Install debug application in directory: {temporaryFolder}", temporaryFolder);
 
             var testingApkFile = Path.Join(baseApksPath, "androidTest", "debug", "app-debug-androidTest.apk");
 
@@ -243,7 +243,7 @@ namespace AppsTester.Checker.Android
             }
 
             packageManager.InstallPackage(testingApkFile, reinstall: false);
-            _logger.LogInformation("Reinstalled androidTest application in directory: {temporaryFolder}",
+            _logger.LogInformation("Install androidTest application in directory: {temporaryFolder}",
                 temporaryFolder);
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("test"));
