@@ -6,14 +6,15 @@ namespace AppsTester.Shared.SubmissionChecker
     public static class SubmissionCheckerExtensions
     {
         public static IServiceCollection AddSubmissionChecker<TSubmissionChecker>(
-            this IServiceCollection serviceCollection, string checkerSystemName)
+            this IServiceCollection serviceCollection, string checkerSystemName, ushort parallelExecutions = 1)
             where TSubmissionChecker : class, ISubmissionChecker
         {
             serviceCollection.AddHostedService(
                 serviceProvider => new SubmissionCheckerBackgroundService<TSubmissionChecker>(
                     checkerSystemName,
                     serviceProvider.GetRequiredService<IRabbitBusProvider>(),
-                    serviceProvider.GetRequiredService<IServiceScopeFactory>()));
+                    serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+                    prefetch: parallelExecutions));
 
             serviceCollection.AddScoped<TSubmissionChecker>();
 

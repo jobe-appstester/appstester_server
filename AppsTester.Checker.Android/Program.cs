@@ -35,7 +35,9 @@ namespace AppsTester.Checker.Android
                     collection.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
 
                     collection.Configure<ControllerOptions>(builder.Configuration.GetSection("Controller"));
-                    collection.AddSubmissionChecker<AndroidApplicationSubmissionChecker>(checkerSystemName: "android");
+                    collection.AddSubmissionChecker<AndroidApplicationSubmissionChecker>(
+                        checkerSystemName: "android",
+                        parallelExecutions: 6);
 
                     collection.AddSingleton<IReservedDevicesProvider, ReservedDevicesProvider>(provider =>
                     {

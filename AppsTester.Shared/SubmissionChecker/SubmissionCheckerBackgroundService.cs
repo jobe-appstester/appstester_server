@@ -14,21 +14,25 @@ namespace AppsTester.Shared.SubmissionChecker
         private readonly string _checkerSystemName;
         private readonly IRabbitBusProvider _rabbitBusProvider;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly ushort _prefetch;
 
         public SubmissionCheckerBackgroundService(
             string checkerSystemName,
             IRabbitBusProvider rabbitBusProvider,
-            IServiceScopeFactory serviceScopeFactory)
+            IServiceScopeFactory serviceScopeFactory,
+            ushort prefetch)
         {
             _checkerSystemName = checkerSystemName;
             _rabbitBusProvider = rabbitBusProvider;
             _serviceScopeFactory = serviceScopeFactory;
+            _prefetch = prefetch;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
+            var submissionsMutex = new SemaphoreSlim(initialCount: 1);
 
+            var rabbitConnection = _rabbitBusProvider.GetRabbitBus();
             await rabbitConnection
                 .PubSub
                 .SubscribeAsync<SubmissionCheckRequestEvent>(
@@ -40,7 +44,10 @@ namespace AppsTester.Shared.SubmissionChecker
                             using var scope = _serviceScopeFactory.CreateScope();
 
                             var processingContext =
-                                new SubmissionProcessingContext(Event: request, cancellationToken);
+                                new SubmissionProcessingContext(
+                                    Event: request,
+                                    SubmissionsMutex: submissionsMutex,
+                                    CancellationToken: cancellationToken);
 
                             var submissionProcessingContextAccessor = scope
                                 .ServiceProvider
@@ -68,7 +75,10 @@ namespace AppsTester.Shared.SubmissionChecker
                                     cancellationToken);
                         }
                     },
-                    configure: configuration => configuration.WithPrefetchCount(1).WithTopic(_checkerSystemName),
+                    configure: configuration =>
+                        configuration
+                            .WithPrefetchCount(_prefetch)
+                            .WithTopic(_checkerSystemName),
                     cancellationToken: stoppingToken
                 );
 

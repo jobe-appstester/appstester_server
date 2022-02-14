@@ -23,13 +23,16 @@ namespace AppsTester.Checker.Android.Gradle
     {
         private readonly ISubmissionProcessingLogger _logger;
         private readonly IConfiguration _configuration;
+        private readonly ISubmissionProcessingContextAccessor _submissionProcessingContextAccessor;
 
         public GradleRunner(
             IConfiguration configuration,
-            ISubmissionProcessingLogger logger)
+            ISubmissionProcessingLogger logger,
+            ISubmissionProcessingContextAccessor submissionProcessingContextAccessor)
         {
             _configuration = configuration;
             _logger = logger;
+            _submissionProcessingContextAccessor = submissionProcessingContextAccessor;
         }
 
         public bool IsGradlewInstalledInDirectory(string tempDirectory)
@@ -40,44 +43,55 @@ namespace AppsTester.Checker.Android.Gradle
         public async Task<GradleTaskExecutionResult> ExecuteTaskAsync(
             string tempDirectory, string taskName, CancellationToken cancellationToken)
         {
-            EnsureGradlewExecutionRights(tempDirectory, taskName);
+            var submissionsMutex = _submissionProcessingContextAccessor.ProcessingContext.SubmissionsMutex;
 
-            _logger.LogInformation(
-                "Started gradle task \"{taskName}\" in directory: {tempDirectory}", taskName, tempDirectory);
+            await submissionsMutex.WaitAsync(cancellationToken);
 
-            var process = new Process
+            try
             {
-                StartInfo = new ProcessStartInfo
+                EnsureGradlewExecutionRights(tempDirectory, taskName);
+
+                _logger.LogInformation(
+                    "Started gradle task \"{taskName}\" in directory: {tempDirectory}", taskName, tempDirectory);
+
+                var process = new Process
                 {
-                    FileName = Path.Join(tempDirectory, "gradlew"),
-                    Arguments = taskName,
-                    WorkingDirectory = tempDirectory,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    Environment =
+                    StartInfo = new ProcessStartInfo
                     {
-                        ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"]
+                        FileName = Path.Join(tempDirectory, "gradlew"),
+                        Arguments = taskName,
+                        WorkingDirectory = tempDirectory,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        Environment =
+                        {
+                            ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"]
+                        }
                     }
-                }
-            };
+                };
 
-            process.Start();
+                process.Start();
 
-            var readOutputTask = process.StandardOutput.ReadToEndAsync();
-            var readErrorTask = process.StandardError.ReadToEndAsync();
+                var readOutputTask = process.StandardOutput.ReadToEndAsync();
+                var readErrorTask = process.StandardError.ReadToEndAsync();
 
-            await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync(cancellationToken));
+                await Task.WhenAll(readErrorTask, readOutputTask, process.WaitForExitAsync(cancellationToken));
 
-            _logger.LogInformation(
-                "Completed gradle task \"{taskName}\" in directory: {tempDirectory}", taskName, tempDirectory);
+                _logger.LogInformation(
+                    "Completed gradle task \"{taskName}\" in directory: {tempDirectory}", taskName, tempDirectory);
 
-            return new GradleTaskExecutionResult
-            (
-                ExitCode: process.ExitCode,
-                StandardError: readErrorTask.Result,
-                StandardOutput: readOutputTask.Result
-            );
+                return new GradleTaskExecutionResult
+                (
+                    ExitCode: process.ExitCode,
+                    StandardError: readErrorTask.Result,
+                    StandardOutput: readOutputTask.Result
+                );
+            }
+            finally
+            {
+                submissionsMutex.Release();
+            }
         }
 
         private void EnsureGradlewExecutionRights(string tempDirectory, string taskName)

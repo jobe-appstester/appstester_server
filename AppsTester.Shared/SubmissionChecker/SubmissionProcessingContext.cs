@@ -6,6 +6,7 @@ namespace AppsTester.Shared.SubmissionChecker
     public record SubmissionProcessingContext
     (
         SubmissionCheckRequestEvent Event,
+        SemaphoreSlim SubmissionsMutex,
         CancellationToken CancellationToken
     );
 }
