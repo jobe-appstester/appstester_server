@@ -31,7 +31,30 @@ namespace AppsTester.Checker.Android
                     collection.AddTransient<IApkReader, ApkReader>();
 
                     collection.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
-                    collection.AddScoped<IGradleRunner, GradleRunner>();
+                    collection.AddSingleton<IGradleRunner, GradleRunner>(provider =>
+                    {
+                        var redisConnectionString = provider
+                            .GetService<IConfiguration>()
+                            .GetConnectionString(name: "BuildSynchronizationRedis");
+
+                        IDistributedLockProvider distributedLockProvider;
+                        if (string.IsNullOrWhiteSpace(redisConnectionString))
+                        {
+                            distributedLockProvider =
+                                new FileDistributedSynchronizationProvider(
+                                    new DirectoryInfo(Environment.CurrentDirectory));
+                        }
+                        else
+                        {
+                            distributedLockProvider = new RedisDistributedSynchronizationProvider(
+                                database: ConnectionMultiplexer.Connect(redisConnectionString).GetDatabase());
+                        }
+
+                        return new GradleRunner(
+                            configuration: provider.GetService<IConfiguration>(),
+                            logger: provider.GetService<ISubmissionProcessingLogger>(),
+                            distributedLockProvider);
+                    });
                     collection.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
 
                     collection.Configure<ControllerOptions>(builder.Configuration.GetSection("Controller"));
