@@ -2,6 +2,8 @@
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
@@ -166,6 +168,11 @@ namespace AppsTester.Checker.Android
             {
                 Console.WriteLine(e);
                 return new ValidationErrorResult(ValidationError: "Cannot extract submitted file.");
+            }
+            catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
+            {
+                return new ValidationErrorResult(
+                    ValidationError: "Internal check error: can't find files for submission.");
             }
 
             await ExtractTemplateFilesAsync(temporaryFolder);
