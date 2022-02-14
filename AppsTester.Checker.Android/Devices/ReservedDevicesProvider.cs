@@ -33,7 +33,9 @@ namespace AppsTester.Checker.Android.Devices
                 {
                     var distributedSynchronizationHandle = await _distributedLockProvider
                         .TryAcquireLockAsync(
-                            name: $"devices:reserve:{onlineDevice.Serial}", cancellationToken: cancellationToken);
+                            name: $"devices:reserve:{onlineDevice.Serial}",
+                            timeout: TimeSpan.FromMilliseconds(100),
+                            cancellationToken: cancellationToken);
 
                     if (distributedSynchronizationHandle == null)
                         continue;
@@ -43,7 +45,7 @@ namespace AppsTester.Checker.Android.Devices
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
             }
         }
     }
