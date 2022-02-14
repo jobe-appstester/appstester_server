@@ -23,16 +23,13 @@ namespace AppsTester.Checker.Android.Gradle
     {
         private readonly ISubmissionProcessingLogger _logger;
         private readonly IConfiguration _configuration;
-        private readonly IDistributedLockProvider _distributedLockProvider;
 
         public GradleRunner(
             IConfiguration configuration,
-            ISubmissionProcessingLogger logger,
-            IDistributedLockProvider distributedLockProvider)
+            ISubmissionProcessingLogger logger)
         {
             _configuration = configuration;
             _logger = logger;
-            _distributedLockProvider = distributedLockProvider;
         }
 
         public bool IsGradlewInstalledInDirectory(string tempDirectory)
@@ -43,8 +40,6 @@ namespace AppsTester.Checker.Android.Gradle
         public async Task<GradleTaskExecutionResult> ExecuteTaskAsync(
             string tempDirectory, string taskName, CancellationToken cancellationToken)
         {
-            await using var _ = await AcquireGradleLockAsync(cancellationToken);
-
             EnsureGradlewExecutionRights(tempDirectory, taskName);
 
             _logger.LogInformation(
@@ -83,25 +78,6 @@ namespace AppsTester.Checker.Android.Gradle
                 StandardError: readErrorTask.Result,
                 StandardOutput: readOutputTask.Result
             );
-        }
-
-        private async Task<IDistributedSynchronizationHandle> AcquireGradleLockAsync(CancellationToken cancellationToken)
-        {
-            while (true)
-            {
-                var distributedSynchronizationHandle = await _distributedLockProvider
-                    .TryAcquireLockAsync(
-                        name: "gradle:reserve",
-                        timeout: TimeSpan.FromMilliseconds(100),
-                        cancellationToken);
-
-                if (distributedSynchronizationHandle != null)
-                    return distributedSynchronizationHandle;
-
-                cancellationToken.ThrowIfCancellationRequested();
-
-                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-            }
         }
 
         private void EnsureGradlewExecutionRights(string tempDirectory, string taskName)
