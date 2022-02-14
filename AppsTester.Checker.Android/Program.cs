@@ -31,7 +31,7 @@ namespace AppsTester.Checker.Android
                     collection.AddTransient<IApkReader, ApkReader>();
 
                     collection.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
-                    collection.AddSingleton<IGradleRunner, GradleRunner>(provider =>
+                    collection.AddScoped<IGradleRunner, GradleRunner>(provider =>
                     {
                         var redisConnectionString = provider
                             .GetService<IConfiguration>()
