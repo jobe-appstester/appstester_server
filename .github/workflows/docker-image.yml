@@ -1,4 +1,4 @@
-name: Build Controller Image
+name: Update Controller
 
 on:
   push:
@@ -13,3 +13,9 @@ jobs:
     - uses: actions/checkout@v3
     - name: Build the Docker image
       run: sudo docker build . --file AppsTester.Controller/Dockerfile --tag appstester-controller:$(date +%s)
+  restart:
+    runs-on: android-testing-system
+    needs: build
+    steps:
+    - name: Restart latest image
+      run: sudo docker run -d appstester-controller:$(date +%s)
