@@ -12,4 +12,4 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image
-      run: docker build . --file AppsTester.Controller/Dockerfile --tag appstester-controller:$(date +%s)
+      run: sudo docker build . --file AppsTester.Controller/Dockerfile --tag appstester-controller:$(date +%s)
