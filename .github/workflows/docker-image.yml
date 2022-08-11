@@ -18,8 +18,8 @@ jobs:
     needs: build
     steps:
     - name: stop running image
-      run: sudo docker stop appstester-controller
+      run: sudo docker stop appstester-controller || true
     - name: remove running image
-      run: sudo docker rm appstester-controller
+      run: sudo docker rm appstester-controller || true
     - name: start built image
       run: sudo docker run -d appstester-controller:${{ github.sha }} --name appstester-controller
