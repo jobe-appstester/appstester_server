@@ -22,4 +22,4 @@ jobs:
     - name: remove running image
       run: sudo docker rm appstester-controller || true
     - name: start built image
-      run: sudo docker run -d appstester-controller:${{ github.sha }} --name appstester-controller-production -e ConnectionStrings__DefaultConnection '${{ secrets.DATABASE_CONNECTION_STRING }}' -e ConnectionStrings__RabbitMq '${{ secrets.RABBITMQ_CONNECTION_STRING }}' -e Moodle__Url '${{ secrets.MOODLE_URL }}' -e Moodle__Token '${{ secrets.MOODLE_TOKEN }}'
+      run: sudo docker run -d --name appstester-controller-production -e ConnectionStrings__DefaultConnection '${{ secrets.DATABASE_CONNECTION_STRING }}' -e ConnectionStrings__RabbitMq '${{ secrets.RABBITMQ_CONNECTION_STRING }}' -e Moodle__Url '${{ secrets.MOODLE_URL }}' -e Moodle__Token '${{ secrets.MOODLE_TOKEN }}' appstester-controller:${{ github.sha }}
