@@ -3,6 +3,8 @@ name: Update Controller
 on:
   push:
     branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
 
 jobs:
   build:
@@ -21,4 +23,4 @@ jobs:
     - name: remove running image
       run: sudo docker rm appstester-controller-production || true
     - name: start built image
-      run: sudo docker run -d --name appstester-controller-production -e 'ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}' -e 'ConnectionStrings__RabbitMq=${{ secrets.RABBITMQ_CONNECTION_STRING }}' -e 'Moodle__Url=${{ secrets.MOODLE_URL }}' -e 'Moodle__Token=${{ secrets.MOODLE_TOKEN }}' appstester-controller:${{ github.sha }}
+      run: sudo docker run -d --name appstester-controller-production -p 8080:80 -e 'ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}' -e 'ConnectionStrings__RabbitMq=${{ secrets.RABBITMQ_CONNECTION_STRING }}' -e 'Moodle__Url=${{ secrets.MOODLE_URL }}' -e 'Moodle__Token=${{ secrets.MOODLE_TOKEN }}' appstester-controller:${{ github.sha }}
