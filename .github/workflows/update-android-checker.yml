@@ -23,4 +23,4 @@ jobs:
     - name: remove running image
       run: sudo docker rm appstester-android-checker-production || true
     - name: start built image
-      run: sudo docker run -d --name appstester-android-checker-production --restart=always --net=host -e 'ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}' -e 'ConnectionStrings__RabbitMq=${{ secrets.RABBITMQ_CONNECTION_STRING }}' -e 'Adb__Host=${{ secrets.ADB_HOST }}' -e 'Controller__Url=${{ secrets.CONTROLLER_URL }}' appstester-android-checker:${{ github.sha }}
+      run: sudo docker run -d --name appstester-android-checker-production --restart=always --net=host -e 'ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}' -e 'ConnectionStrings__RabbitMq=${{ secrets.RABBITMQ_CONNECTION_STRING }}' -e 'ConnectionStrings__DevicesSynchronizationRedis=${{ secrets.DEVICES_SYNCHRONIZATION_REDIS_CONNECTION_STRING }}' -e 'Adb__Host=${{ secrets.ADB_HOST }}' -e 'Controller__Url=${{ secrets.CONTROLLER_URL }}' appstester-android-checker:${{ github.sha }}
