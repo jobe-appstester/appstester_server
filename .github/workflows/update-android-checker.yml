@@ -1,0 +1,26 @@
+name: Update Android Checker
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: android-testing-system
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build the Docker image
+      run: sudo docker build . --file AppsTester.Checker.Android/Dockerfile --tag appstester-android-checker:${{ github.sha }}
+  restart:
+    runs-on: android-testing-system
+    needs: build
+    environment: production
+    steps:
+    - name: stop running image
+      run: sudo docker stop appstester-android-checker-production || true
+    - name: remove running image
+      run: sudo docker rm appstester-android-checker-production || true
+    - name: start built image
+      run: sudo docker run -d --name appstester-android-checker-production -e 'ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}' -e 'ConnectionStrings__RabbitMq=${{ secrets.RABBITMQ_CONNECTION_STRING }}' -e 'Adb__Host=${{ secrets.ADB_HOST }}' -e 'Controller__Url=${{ secrets.CONTROLLER_URL }}' appstester-android-checker:${{ github.sha }}
