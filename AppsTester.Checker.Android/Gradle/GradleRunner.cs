@@ -8,6 +8,7 @@ using Medallion.Threading;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Mono.Unix;
+using Sentry;
 
 namespace AppsTester.Checker.Android.Gradle
 {
@@ -106,7 +107,10 @@ namespace AppsTester.Checker.Android.Gradle
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, "Error happened during execution of Gradle task {taskName}", taskName);
+                SentrySdk.CaptureException(exception, scope =>
+                {
+                    scope.SetTag("taskName", taskName);
+                });
             }
         }
     }

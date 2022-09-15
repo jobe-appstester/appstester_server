@@ -9,6 +9,7 @@ using EasyNetQ;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Sentry;
 
 namespace AppsTester.Controller.Submissions
 {
@@ -68,9 +69,11 @@ namespace AppsTester.Controller.Submissions
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine(e);
-                            await rabbitConnection.Scheduler.FuturePublishAsync(resultEvent, TimeSpan.FromMinutes(1),
-                                stoppingToken);
+                            SentrySdk.CaptureException(e);
+
+                            await rabbitConnection
+                                .Scheduler
+                                .FuturePublishAsync(resultEvent, TimeSpan.FromMinutes(1), stoppingToken);
                         }
                     });
         }

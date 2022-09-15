@@ -11,6 +11,7 @@ using EasyNetQ;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
+using Sentry;
 
 namespace AppsTester.Controller.Submissions
 {
@@ -115,7 +116,7 @@ namespace AppsTester.Controller.Submissions
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine(e);
+                            SentrySdk.CaptureException(e);
                         }
                         finally
                         {
@@ -125,7 +126,7 @@ namespace AppsTester.Controller.Submissions
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e);
+                    SentrySdk.CaptureException(e);
                 }
                 finally
                 {

@@ -17,6 +17,7 @@ using AppsTester.Shared.Files;
 using AppsTester.Shared.SubmissionChecker;
 using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Extensions.Logging;
+using Sentry;
 using SharpAdbClient;
 using SharpAdbClient.DeviceCommands;
 
@@ -161,16 +162,26 @@ namespace AppsTester.Checker.Android
             }
             catch (ZipException e)
             {
-                Console.WriteLine(e);
+                SentrySdk.CaptureException(e, scope =>
+                {
+                    scope.SetTag("extractingFile", "submit");
+                });
+
                 return new ValidationErrorResult(ValidationError: "Cannot extract submitted file.");
             }
             catch (InvalidDataException e)
             {
-                Console.WriteLine(e);
+                SentrySdk.CaptureException(e, scope =>
+                {
+                    scope.SetTag("extractingFile", "submit");
+                });
+
                 return new ValidationErrorResult(ValidationError: "Cannot extract submitted file.");
             }
             catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
             {
+                SentrySdk.CaptureException(e);
+
                 return new ValidationErrorResult(
                     ValidationError: "Internal check error: can't find files for submission.");
             }
@@ -232,7 +243,7 @@ namespace AppsTester.Checker.Android
             }
             catch (PackageInstallationException e)
             {
-                Console.WriteLine(e);
+                SentrySdk.CaptureException(e);
             }
 
             packageManager.InstallPackage(applicationApkFile, reinstall: false);
@@ -246,7 +257,7 @@ namespace AppsTester.Checker.Android
             }
             catch (PackageInstallationException e)
             {
-                Console.WriteLine(e);
+                SentrySdk.CaptureException(e);
             }
 
             packageManager.InstallPackage(testingApkFile, reinstall: false);

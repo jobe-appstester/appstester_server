@@ -15,6 +15,7 @@ using Medallion.Threading.Redis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
 namespace AppsTester.Checker.Android
@@ -25,21 +26,21 @@ namespace AppsTester.Checker.Android
         {
             await Host
                 .CreateDefaultBuilder()
-                .ConfigureServices((builder, collection) =>
+                .ConfigureServices((builder, services) =>
                 {
-                    collection.AddSingleton<IAdbClientProvider, AdbClientProvider>();
-                    collection.AddTransient<IApkReader, ApkReader>();
+                    services.AddSingleton<IAdbClientProvider, AdbClientProvider>();
+                    services.AddTransient<IApkReader, ApkReader>();
 
-                    collection.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
-                    collection.AddScoped<IGradleRunner, GradleRunner>();
-                    collection.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
+                    services.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
+                    services.AddScoped<IGradleRunner, GradleRunner>();
+                    services.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
 
-                    collection.Configure<ControllerOptions>(builder.Configuration.GetSection("Controller"));
-                    collection.AddSubmissionChecker<AndroidApplicationSubmissionChecker>(
+                    services.Configure<ControllerOptions>(builder.Configuration.GetSection("Controller"));
+                    services.AddSubmissionChecker<AndroidApplicationSubmissionChecker>(
                         checkerSystemName: "android",
                         parallelExecutions: 6);
 
-                    collection.AddSingleton<IReservedDevicesProvider, ReservedDevicesProvider>(provider =>
+                    services.AddSingleton<IReservedDevicesProvider, ReservedDevicesProvider>(provider =>
                     {
                         var redisConnectionString = provider.GetService<IConfiguration>()
                             .GetConnectionString(name: "DevicesSynchronizationRedis");
@@ -61,12 +62,14 @@ namespace AppsTester.Checker.Android
                             provider.GetService<IAdbDevicesProvider>(), distributedLockProvider);
                     });
 
-                    collection.AddTemporaryFolders();
-                    collection.AddRabbitMq();
+                    services.AddTemporaryFolders();
+                    services.AddRabbitMq();
 
-                    //collection.AddHostedService<AndroidApplicationTestingBackgroundService>();
-                    collection.AddHttpClient();
-                    //collection.AddSingleton<AndroidApplicationTester>();
+                    services.AddHttpClient();
+                })
+                .ConfigureLogging((_, loggingBuilder) =>
+                {
+                    loggingBuilder.AddSentry();
                 })
                 .RunConsoleAsync();
         }
