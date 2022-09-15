@@ -5,6 +5,7 @@ using AppsTester.Shared.RabbitMq;
 using AppsTester.Shared.SubmissionChecker.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Sentry;
 
 namespace AppsTester.Shared.SubmissionChecker
 {
@@ -64,7 +65,7 @@ namespace AppsTester.Shared.SubmissionChecker
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine(e);
+                            SentrySdk.CaptureException(e);
 
                             await rabbitConnection
                                 .Scheduler
