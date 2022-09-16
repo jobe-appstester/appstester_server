@@ -24,14 +24,14 @@ jobs:
     - name: start built image
       run: >
         sudo docker run
-          -d
-          --name appstester-controller-production
-          --restart=always
-          -p 8080:80
-          -v /tmp:/tmp
-          -e 'ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}'
-          -e 'ConnectionStrings__RabbitMq=${{ secrets.RABBITMQ_CONNECTION_STRING }}'
-          -e 'Moodle__Url=${{ secrets.MOODLE_URL }}'
-          -e 'Moodle__Token=${{ secrets.MOODLE_TOKEN }}'
-          -e 'Sentry__Dsn=${{ secrets.SENTRY_DSN }}'
-          appstester-controller:${{ github.sha }}
+        -d
+        --name appstester-controller-production
+        --restart=always
+        -p 8080:80
+        -v /tmp:/tmp
+        -e 'ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}'
+        -e 'ConnectionStrings__RabbitMq=${{ secrets.RABBITMQ_CONNECTION_STRING }}'
+        -e 'Moodle__Url=${{ secrets.MOODLE_URL }}'
+        -e 'Moodle__Token=${{ secrets.MOODLE_TOKEN }}'
+        -e 'Sentry__Dsn=${{ secrets.SENTRY_DSN }}'
+        appstester-controller:${{ github.sha }}
