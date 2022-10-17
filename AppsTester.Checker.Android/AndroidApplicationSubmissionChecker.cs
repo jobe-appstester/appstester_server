@@ -26,6 +26,8 @@ namespace AppsTester.Checker.Android
     // ReSharper disable once ClassNeverInstantiated.Global
     internal class AndroidApplicationSubmissionChecker : SubmissionChecker
     {
+        private const int SimultaneousTestsCount = 3;
+
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IGradleRunner _gradleRunner;
         private readonly IInstrumentationsOutputParser _instrumentationsOutputParser;
@@ -226,6 +228,18 @@ namespace AppsTester.Checker.Android
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
+            var tests =
+                Enumerable
+                    .Range(0, SimultaneousTestsCount)
+                    .Select(_ => TestApplication(processingContext, temporaryFolder));
+
+            var testResults = await Task.WhenAll(tests);
+            return testResults.OrderByDescending(testResult => testResult.Grade).First();
+        }
+
+        private async Task<CheckResult> TestApplication(SubmissionProcessingContext processingContext,
+                                                        ITemporaryFolder temporaryFolder)
+        {
             var adbClient = _adbClientProvider.GetAdbClient();
 
             using var device = await _reservedDevicesProvider.ReserveDeviceAsync(processingContext.CancellationToken);
