@@ -28,7 +28,7 @@ jobs:
         --name appstester-controller-production
         --restart=always
         -p 8080:80
-        -v /tmp:/tmp
+        -v /tmp/apps-tester.controller:/tmp/apps-tester.controller
         -e 'ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}'
         -e 'ConnectionStrings__RabbitMq=${{ secrets.RABBITMQ_CONNECTION_STRING }}'
         -e 'Moodle__Url=${{ secrets.MOODLE_URL }}'
