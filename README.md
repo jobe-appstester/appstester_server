@@ -11,6 +11,7 @@
 * Android SDK
 
 ## Инфраструктура
+![image](https://user-images.githubusercontent.com/70891118/205965119-8ed9309b-3707-488a-8535-aff4935226a7.png)
 
 ## Конфигурация
 Для локальной разработки можно хранить конфигурацию в `/{Project}}/appsettings.Local.json`
