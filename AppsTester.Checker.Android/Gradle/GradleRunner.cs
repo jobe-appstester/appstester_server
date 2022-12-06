@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Shared.SubmissionChecker;
@@ -22,6 +23,9 @@ namespace AppsTester.Checker.Android.Gradle
     
     internal class GradleRunner : IGradleRunner
     {
+        private readonly bool isWindows;
+        private readonly bool isLinux;
+        private readonly string GradlewFileName;
         private readonly ISubmissionProcessingLogger _logger;
         private readonly IConfiguration _configuration;
         private readonly ISubmissionProcessingContextAccessor _submissionProcessingContextAccessor;
@@ -34,24 +38,29 @@ namespace AppsTester.Checker.Android.Gradle
             _configuration = configuration;
             _logger = logger;
             _submissionProcessingContextAccessor = submissionProcessingContextAccessor;
+            isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+            isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+            GradlewFileName = isWindows ? "gradlew.bat" : "gradlew";
         }
 
         public bool IsGradlewInstalledInDirectory(string tempDirectory)
         {
-            return File.Exists(Path.Join(tempDirectory, "gradlew"));
+            return File.Exists(Path.Join(tempDirectory, GradlewFileName));
         }
 
         public async Task<GradleTaskExecutionResult> ExecuteTaskAsync(
             string tempDirectory, string taskName, CancellationToken cancellationToken)
-        {
+       {
             var submissionsMutex = _submissionProcessingContextAccessor.ProcessingContext.SubmissionsMutex;
 
             await submissionsMutex.WaitAsync(cancellationToken);
-
+            
             try
             {
-                EnsureGradlewExecutionRights(tempDirectory, taskName);
-
+                if (isLinux)
+                {
+                    EnsureGradlewExecutionRights(tempDirectory, taskName);
+                }
                 _logger.LogInformation(
                     "Started gradle task \"{taskName}\" in directory: {tempDirectory}", taskName, tempDirectory);
 
@@ -59,7 +68,7 @@ namespace AppsTester.Checker.Android.Gradle
                 {
                     StartInfo = new ProcessStartInfo
                     {
-                        FileName = Path.Join(tempDirectory, "gradlew"),
+                        FileName = Path.Join(tempDirectory, GradlewFileName),
                         Arguments = taskName,
                         WorkingDirectory = tempDirectory,
                         RedirectStandardOutput = true,
@@ -67,7 +76,8 @@ namespace AppsTester.Checker.Android.Gradle
                         UseShellExecute = false,
                         Environment =
                         {
-                            ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"]
+                            ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"],
+                            ["ANDROID_SDK_ROOT"] = _configuration["ANDROID_SDK_ROOT"]
                         }
                     }
                 };
@@ -100,7 +110,7 @@ namespace AppsTester.Checker.Android.Gradle
             try
             {
                 // ReSharper disable once ObjectCreationAsStatement
-                new UnixFileInfo(Path.Join(tempDirectory, "gradlew"))
+                new UnixFileInfo(Path.Join(tempDirectory, GradlewFileName))
                 {
                     FileAccessPermissions = FileAccessPermissions.UserExecute
                 };

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Apk;
@@ -25,53 +26,57 @@ namespace AppsTester.Checker.Android
         private static async Task Main()
         {
             await Host
-                .CreateDefaultBuilder()
-                .ConfigureServices((builder, services) =>
+            .CreateDefaultBuilder()
+            .ConfigureAppConfiguration((hostingContext, config) =>
+            {
+                config.AddJsonFile("appsettings.Local.json", optional: false, reloadOnChange: false);
+            })
+            .ConfigureServices((builder, services) =>
+            {
+                services.AddSingleton<IAdbClientProvider, AdbClientProvider>();
+                services.AddTransient<IApkReader, ApkReader>();
+
+                services.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
+                services.AddScoped<IGradleRunner, GradleRunner>();
+                services.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
+
+                services.Configure<ControllerOptions>(builder.Configuration.GetSection("Controller"));
+                services.AddSubmissionChecker<AndroidApplicationSubmissionChecker>(
+                    checkerSystemName: "android",
+                    parallelExecutions: 6);
+
+                services.AddSingleton<IReservedDevicesProvider, ReservedDevicesProvider>(provider =>
                 {
-                    services.AddSingleton<IAdbClientProvider, AdbClientProvider>();
-                    services.AddTransient<IApkReader, ApkReader>();
+                    var redisConnectionString = provider.GetService<IConfiguration>()
+                        .GetConnectionString(name: "DevicesSynchronizationRedis");
 
-                    services.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
-                    services.AddScoped<IGradleRunner, GradleRunner>();
-                    services.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
-
-                    services.Configure<ControllerOptions>(builder.Configuration.GetSection("Controller"));
-                    services.AddSubmissionChecker<AndroidApplicationSubmissionChecker>(
-                        checkerSystemName: "android",
-                        parallelExecutions: 6);
-
-                    services.AddSingleton<IReservedDevicesProvider, ReservedDevicesProvider>(provider =>
+                    IDistributedLockProvider distributedLockProvider;
+                    if (string.IsNullOrWhiteSpace(redisConnectionString))
                     {
-                        var redisConnectionString = provider.GetService<IConfiguration>()
-                            .GetConnectionString(name: "DevicesSynchronizationRedis");
+                        distributedLockProvider =
+                            new FileDistributedSynchronizationProvider(
+                                new DirectoryInfo(Environment.CurrentDirectory));
+                    }
+                    else
+                    {
+                        distributedLockProvider = new RedisDistributedSynchronizationProvider(
+                            database: ConnectionMultiplexer.Connect(redisConnectionString).GetDatabase());
+                    }
 
-                        IDistributedLockProvider distributedLockProvider;
-                        if (string.IsNullOrWhiteSpace(redisConnectionString))
-                        {
-                            distributedLockProvider =
-                                new FileDistributedSynchronizationProvider(
-                                    new DirectoryInfo(Environment.CurrentDirectory));
-                        }
-                        else
-                        {
-                            distributedLockProvider = new RedisDistributedSynchronizationProvider(
-                                database: ConnectionMultiplexer.Connect(redisConnectionString).GetDatabase());
-                        }
+                    return new ReservedDevicesProvider(
+                        provider.GetService<IAdbDevicesProvider>(), distributedLockProvider);
+                });
 
-                        return new ReservedDevicesProvider(
-                            provider.GetService<IAdbDevicesProvider>(), distributedLockProvider);
-                    });
+                services.AddTemporaryFolders();
+                services.AddRabbitMq();
 
-                    services.AddTemporaryFolders();
-                    services.AddRabbitMq();
-
-                    services.AddHttpClient();
-                })
-                .ConfigureLogging((_, loggingBuilder) =>
-                {
-                    loggingBuilder.AddSentry();
-                })
-                .RunConsoleAsync();
+                services.AddHttpClient();
+            })
+            .ConfigureLogging((_, loggingBuilder) =>
+            {
+                loggingBuilder.AddSentry().AddConsole();
+            })
+            .RunConsoleAsync();
         }
     }
 }

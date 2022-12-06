@@ -168,7 +168,7 @@ namespace AppsTester.Checker.Android
                 {
                     scope.SetTag("extractingFile", "submit");
                 });
-
+                 
                 return new ValidationErrorResult(ValidationError: "Cannot extract submitted file.");
             }
             catch (InvalidDataException e)

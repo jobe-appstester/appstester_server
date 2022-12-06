@@ -23,6 +23,7 @@ namespace AppsTester.Controller
 
         public void ConfigureServices(IServiceCollection services)
         {
+            // add appsettings.local.json
             services.AddControllers();
 
             services.AddRabbitMq();
