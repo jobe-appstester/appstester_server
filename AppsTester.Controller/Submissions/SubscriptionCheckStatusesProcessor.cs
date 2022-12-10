@@ -67,7 +67,7 @@ namespace AppsTester.Controller.Submissions
                                 functionName: "local_qtype_set_submission_status",
                                 functionParams: new Dictionary<string, object>
                                 {
-                                    ["id"] = subscriptionCheck.AttemptId
+                                    ["id"] = subscriptionCheck.AttemptStepId
                                 },
                                 requestParams: new Dictionary<string, string>
                                 {

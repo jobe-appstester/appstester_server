@@ -25,7 +25,7 @@ namespace AppsTester.Controller.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("AttemptId")
+                    b.Property<int>("AttemptStepId")
                         .HasColumnType("integer");
 
                     b.Property<string>("LastSerializedStatus")

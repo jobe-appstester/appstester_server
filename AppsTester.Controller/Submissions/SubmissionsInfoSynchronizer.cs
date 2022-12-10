@@ -53,7 +53,7 @@ namespace AppsTester.Controller.Submissions
                     {
                         try
                         {
-                            if (dbContext.SubmissionChecks.Any(sc => sc.AttemptId == attemptId))
+                            if (dbContext.SubmissionChecks.Any(sc => sc.AttemptStepId == attemptId))
                             {
                                 await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
                                 continue;
@@ -101,7 +101,7 @@ namespace AppsTester.Controller.Submissions
                             var submissionCheck = new SubmissionCheck
                             {
                                 Id = submissionId,
-                                AttemptId = attemptId,
+                                AttemptStepId = attemptId,
                                 SendingDateTimeUtc = DateTime.UtcNow,
                                 SerializedRequest = JsonConvert.SerializeObject(submissionCheckRequest)
                             };
