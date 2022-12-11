@@ -9,7 +9,7 @@ using EasyNetQ;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Sentry;
+using Microsoft.Extensions.Logging;
 
 namespace AppsTester.Controller.Submissions
 {
@@ -18,15 +18,18 @@ namespace AppsTester.Controller.Submissions
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly IRabbitBusProvider _rabbitBusProvider;
         private readonly IMoodleCommunicator _moodleCommunicator;
+        private readonly ILogger<SubscriptionCheckResultsProcessor> _logger;
 
         public SubscriptionCheckResultsProcessor(
             IServiceScopeFactory serviceScopeFactory,
             IRabbitBusProvider rabbitBusProvider,
-            IMoodleCommunicator moodleCommunicator)
+            IMoodleCommunicator moodleCommunicator,
+            ILogger<SubscriptionCheckResultsProcessor> logger)
         {
             _serviceScopeFactory = serviceScopeFactory;
             _rabbitBusProvider = rabbitBusProvider;
             _moodleCommunicator = moodleCommunicator;
+            _logger = logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -35,9 +38,7 @@ namespace AppsTester.Controller.Submissions
 
             await rabbitConnection
                 .PubSub
-                .SubscribeAsync<SubmissionCheckResultEvent>(
-                    subscriptionId: "",
-                    onMessage: async resultEvent =>
+                .SubscribeAsync<SubmissionCheckResultEvent>(subscriptionId: "", onMessage: async resultEvent =>
                     {
                         try
                         {
@@ -69,13 +70,13 @@ namespace AppsTester.Controller.Submissions
                         }
                         catch (Exception e)
                         {
-                            SentrySdk.CaptureException(e);
+                            _logger.LogError(e, "can't handle submissionresult {SubmissionId}", resultEvent.SubmissionId);
 
                             await rabbitConnection
                                 .Scheduler
                                 .FuturePublishAsync(resultEvent, TimeSpan.FromMinutes(1), stoppingToken);
                         }
-                    });
+                    }, cancellationToken: stoppingToken);
         }
     }
 }

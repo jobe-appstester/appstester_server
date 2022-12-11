@@ -2,6 +2,7 @@
 
     <PropertyGroup>
         <TargetFramework>net5.0</TargetFramework>
+        <UserSecretsId>055614a4-0e7c-4ca2-bf98-752430be1e82</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -19,6 +20,7 @@
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="5.0.10" />
         <PackageReference Include="Sentry.AspNetCore" Version="3.21.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.3" />
+        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="7.0.0" />
     </ItemGroup>
 
     <ItemGroup>

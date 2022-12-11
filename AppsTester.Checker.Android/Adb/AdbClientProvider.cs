@@ -1,7 +1,10 @@
 using System;
+using System.IO;
 using System.Net;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SharpAdbClient;
 
 namespace AppsTester.Checker.Android.Adb
@@ -15,26 +18,38 @@ namespace AppsTester.Checker.Android.Adb
     {
         private IAdbClient _adbClient;
         private IDeviceMonitor _deviceMonitor;
+        private readonly ILogger<AdbClientProvider> _logger;
 
-        public AdbClientProvider(IConfiguration configuration, ILogger<AdbClientProvider> logger)
+        public AdbClientProvider(IConfiguration configuration, IOptions<AdbOptions> adbOptions, ILogger<AdbClientProvider> logger)
         {
-            var dnsEndPoint = new DnsEndPoint(configuration["Adb:Host"], port: 5037);
+            var dnsEndPoint = new DnsEndPoint(adbOptions.Value.Host, port: 5037);
+            _logger = logger;
 
-            SetupAdbClient(configuration, logger, dnsEndPoint);
+            SetupAdbServer(Path.Combine(configuration.GetValue<string>("ANDROID_SDK_ROOT"), "platform-tools", RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "adb.exe" : "adb"));
+            SetupAdbClient(adbOptions.Value, logger, dnsEndPoint);
             SetupDeviceMonitor(logger, dnsEndPoint);
         }
+        private void SetupAdbServer(string adbPath)
+        {
+            if (!AdbServer.Instance.GetStatus().IsRunning)
+            {
+                _logger.LogInformation("ADB server {adbPath} is not running", adbPath);
+                var startResult = AdbServer.Instance.StartServer(adbPath, false);
+                _logger.LogInformation("ADB server start result {startResult}", startResult);
+            }
 
-        private void SetupAdbClient(IConfiguration configuration, ILogger logger, EndPoint dnsEndPoint)
+        }
+        private void SetupAdbClient(AdbOptions configuration, ILogger logger, EndPoint dnsEndPoint)
         {
             _adbClient = new AdbClient(dnsEndPoint, adbSocketFactory: Factories.AdbSocketFactory);
 
-            logger.LogInformation("Connecting to ADB server at {adbHost}:5037.", configuration["Adb:Host"]);
+            logger.LogInformation("Connecting to ADB server at {adbHost}:5037.", configuration.Host);
 
             var version = _adbClient.GetAdbVersion();
 
             logger.LogInformation(
                 "Successfully connected to ADB server at {adbHost}:5037. Version is {version}.",
-                configuration["Adb:Host"],
+                configuration.Host,
                 version);
         }
 

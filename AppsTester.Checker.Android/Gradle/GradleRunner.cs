@@ -1,14 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Shared.SubmissionChecker;
-using Medallion.Threading;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Mono.Unix;
-using Sentry;
 
 namespace AppsTester.Checker.Android.Gradle
 {
@@ -25,6 +25,7 @@ namespace AppsTester.Checker.Android.Gradle
         private readonly ISubmissionProcessingLogger _logger;
         private readonly IConfiguration _configuration;
         private readonly ISubmissionProcessingContextAccessor _submissionProcessingContextAccessor;
+        private readonly string _gradlewExecutable;
 
         public GradleRunner(
             IConfiguration configuration,
@@ -34,16 +35,18 @@ namespace AppsTester.Checker.Android.Gradle
             _configuration = configuration;
             _logger = logger;
             _submissionProcessingContextAccessor = submissionProcessingContextAccessor;
+            _gradlewExecutable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "gradlew.bat" : "gradlew";
         }
 
         public bool IsGradlewInstalledInDirectory(string tempDirectory)
         {
-            return File.Exists(Path.Join(tempDirectory, "gradlew"));
+            return File.Exists(Path.Join(tempDirectory, _gradlewExecutable));
         }
 
         public async Task<GradleTaskExecutionResult> ExecuteTaskAsync(
             string tempDirectory, string taskName, CancellationToken cancellationToken)
-        {
+       {
+            using var _ = _logger.BeginScope(new Dictionary<string, string> { { "taskName", taskName } });
             var submissionsMutex = _submissionProcessingContextAccessor.ProcessingContext.SubmissionsMutex;
 
             await submissionsMutex.WaitAsync(cancellationToken);
@@ -59,7 +62,7 @@ namespace AppsTester.Checker.Android.Gradle
                 {
                     StartInfo = new ProcessStartInfo
                     {
-                        FileName = Path.Join(tempDirectory, "gradlew"),
+                        FileName = Path.Join(tempDirectory, _gradlewExecutable),
                         Arguments = taskName,
                         WorkingDirectory = tempDirectory,
                         RedirectStandardOutput = true,
@@ -97,6 +100,10 @@ namespace AppsTester.Checker.Android.Gradle
 
         private void EnsureGradlewExecutionRights(string tempDirectory, string taskName)
         {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return;
+            }
             try
             {
                 // ReSharper disable once ObjectCreationAsStatement
@@ -107,10 +114,7 @@ namespace AppsTester.Checker.Android.Gradle
             }
             catch (Exception exception)
             {
-                SentrySdk.CaptureException(exception, scope =>
-                {
-                    scope.SetTag("taskName", taskName);
-                });
+                _logger.LogError(exception, "can't check execution rights");
             }
         }
     }

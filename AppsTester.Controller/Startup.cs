@@ -23,6 +23,10 @@ namespace AppsTester.Controller
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddOptions<MoodleOptions>()
+                .Bind(Configuration.GetSection("Moodle"))
+                .ValidateDataAnnotations();
+
             services.AddControllers();
 
             services.AddRabbitMq();
