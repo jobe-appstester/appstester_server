@@ -200,23 +200,17 @@ namespace AppsTester.Checker.Android
 
             if (!submissionProjects.IsSuccessful)
             {
-                var message = $"Can't get project list of submission: {Environment.NewLine}{Environment.NewLine}StdErr: {Environment.NewLine}{submissionProjects.StandardError}{Environment.NewLine}{Environment.NewLine}StdOut: {Environment.NewLine}{submissionProjects.StandardOutput}";
-                _logger.LogWarning(message);
-                return new ValidationErrorResult(ValidationError: message);
+                return new ValidationErrorResult(ValidationError: $"Can't get project list of submission: {Environment.NewLine}{Environment.NewLine}StdErr: {Environment.NewLine}{submissionProjects.StandardError}{Environment.NewLine}{Environment.NewLine}StdOut: {Environment.NewLine}{submissionProjects.StandardOutput}");
             }
 
             if (submissionProjects.StandardOutput.Split(Environment.NewLine).Count(l => l.Contains("Project")) > 1)
             {
-                var message = "Submission must have only one project.";
-                _logger.LogWarning(message);
-                return new ValidationErrorResult(ValidationError: message);
+                return new ValidationErrorResult(ValidationError: "Submission must have only one project.");
             }
 
             if (!submissionProjects.StandardOutput.Contains("Project ':app'"))
             {
-                var message = "Submission must have project with the name 'app'.";
-                _logger.LogWarning(message);
-                return new ValidationErrorResult(ValidationError: message);
+                return new ValidationErrorResult(ValidationError: "Submission must have project with the name 'app'.");
             }
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("gradle_build"));

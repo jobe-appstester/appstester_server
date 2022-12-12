@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 
 namespace AppsTester.Shared.SubmissionChecker
@@ -19,7 +20,6 @@ namespace AppsTester.Shared.SubmissionChecker
         public async Task CheckSubmissionAsync(SubmissionProcessingContext processingContext)
         {
             var result = await CheckSubmissionCoreAsync(processingContext);
-
             await _submissionResultSetter.SetResultAsync(result);
         }
 

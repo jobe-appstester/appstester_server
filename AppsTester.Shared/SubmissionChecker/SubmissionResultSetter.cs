@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using AppsTester.Shared.RabbitMq;
 using AppsTester.Shared.SubmissionChecker.Events;
 using EasyNetQ;
+using Microsoft.Extensions.Logging;
 
 namespace AppsTester.Shared.SubmissionChecker
 {
@@ -14,13 +15,16 @@ namespace AppsTester.Shared.SubmissionChecker
     {
         private readonly IRabbitBusProvider _rabbitBusProvider;
         private readonly ISubmissionProcessingContextAccessor _processingContextAccessor;
+        private readonly ILogger<SubmissionResultSetter> _logger;
 
         public SubmissionResultSetter(
             IRabbitBusProvider rabbitBusProvider,
-            ISubmissionProcessingContextAccessor processingContextAccessor)
+            ISubmissionProcessingContextAccessor processingContextAccessor,
+            ILogger<SubmissionResultSetter> logger)
         {
             _rabbitBusProvider = rabbitBusProvider;
             _processingContextAccessor = processingContextAccessor;
+            _logger = logger;
         }
 
         public async Task SetResultAsync(object result)
@@ -33,7 +37,7 @@ namespace AppsTester.Shared.SubmissionChecker
                         SubmissionId = _processingContextAccessor.ProcessingContext.Event.SubmissionId
                     }
                     .WithResult(result);
-
+            _logger.LogInformation("{SubmissionId} done with result {SerializedResult}", submissionCheckResultEvent.SubmissionId, submissionCheckResultEvent.SerializedResult);
             await rabbitConnection.PubSub.PublishAsync(
                 message: submissionCheckResultEvent,
                 topic: "",

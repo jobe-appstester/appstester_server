@@ -70,7 +70,7 @@ namespace AppsTester.Checker.Android.Gradle
                         UseShellExecute = false,
                         Environment =
                         {
-                            ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"]
+                            ["ANDROID_SDK_ROOT"] = _configuration["ANDROID_SDK_ROOT"],
                         }
                     }
                 };
