@@ -23,3 +23,28 @@ sequenceDiagram
     Controller ->> Moodle: Обновление результата решения
 
 ```
+
+
+## Метрики
+```mermaid
+sequenceDiagram
+    participant Controller
+    participant otel_collector
+    participant Prometheus
+    participant Grafana
+    link otel_collector: Docs @ https://opentelemetry.io/docs/collector/
+    link Prometheus: Docs @ https://prometheus.io/
+    link Grafana: Docs @ https://grafana.com
+    loop отправка метрик
+        Controller ->> otel_collector: gRPC
+    end
+    Note right of Controller: .NET шлет данные в формате OpenTelemetry
+    loop стягивание метрик
+      Prometheus ->> otel_collector: GET /metrics
+    end
+    loop обновление dashboard
+      Grafana ->> Prometheus: 
+    end
+```
+
+# **TODO** описать метрики, их теги
