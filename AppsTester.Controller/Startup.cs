@@ -1,5 +1,6 @@
 using System;
 using AppsTester.Controller.Files;
+using AppsTester.Controller.Metrics;
 using AppsTester.Controller.Moodle;
 using AppsTester.Controller.Submissions;
 using AppsTester.Shared.RabbitMq;
@@ -38,6 +39,8 @@ namespace AppsTester.Controller
             services.AddHttpClient();
 
             services.AddTransient<IMoodleCommunicator, MoodleCommunicator>();
+
+            services.AddMetrics(Configuration);
 
             services.AddHostedService<SubscriptionCheckResultsProcessor>();
             services.AddHostedService<SubscriptionCheckStatusesProcessor>();
