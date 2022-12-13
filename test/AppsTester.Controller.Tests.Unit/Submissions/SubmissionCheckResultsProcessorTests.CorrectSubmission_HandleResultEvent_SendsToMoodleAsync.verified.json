@@ -1,0 +1,9 @@
+{
+  "functionName": "local_qtype_set_submission_results",
+  "functionParams": {
+    "id": 14
+  },
+  "requestParams": {
+    "result": "some serialized result"
+  }
+}

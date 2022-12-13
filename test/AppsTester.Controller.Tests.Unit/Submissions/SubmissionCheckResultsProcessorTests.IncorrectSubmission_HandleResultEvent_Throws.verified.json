@@ -1,0 +1,5 @@
+{
+  "Type": "InvalidOperationException",
+  "Message": "Can't find submission 9a6a8525-cc55-45aa-a534-1555de362933",
+  "StackTrace": "at AppsTester.Controller.Submissions.SubmissionCheckResultsProcessor.HandleResultEvent(SubmissionCheckResultEvent resultEvent, CancellationToken cancellationToken)"
+}

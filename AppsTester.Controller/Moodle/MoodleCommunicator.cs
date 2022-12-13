@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 
 namespace AppsTester.Controller.Moodle
 {
-    internal interface IMoodleCommunicator
+    public interface IMoodleCommunicator
     {
         Task<TResult> GetFunctionResultAsync<TResult>(
             string functionName,

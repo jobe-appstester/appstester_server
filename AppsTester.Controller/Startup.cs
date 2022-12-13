@@ -35,14 +35,16 @@ namespace AppsTester.Controller
             services.AddSingleton(_ => new FileCache("apps-tester.controller", TimeSpan.FromDays(7)));
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
-
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddHttpClient();
 
             services.AddTransient<IMoodleCommunicator, MoodleCommunicator>();
 
             services.AddMetrics(Configuration);
 
-            services.AddHostedService<SubscriptionCheckResultsProcessor>();
+            services.AddHostedService<SubmissionCheckResultsBusReceiver>();
+            services.AddScoped<SubmissionCheckResultsProcessor>();
+
             services.AddHostedService<SubscriptionCheckStatusesProcessor>();
             services.AddHostedService<SubmissionsInfoSynchronizer>();
 
