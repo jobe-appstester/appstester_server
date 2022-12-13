@@ -17,6 +17,7 @@ using AppsTester.Checker.Android.Statuses;
 using AppsTester.Shared.Files;
 using AppsTester.Shared.SubmissionChecker;
 using ICSharpCode.SharpZipLib.Zip;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SharpAdbClient;
 using SharpAdbClient.DeviceCommands;
@@ -27,7 +28,7 @@ namespace AppsTester.Checker.Android
     internal class AndroidApplicationSubmissionChecker : SubmissionChecker
     {
         private const int SimultaneousTestsCount = 3;
-
+        private readonly TimeSpan _testTimeout;
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IGradleRunner _gradleRunner;
         private readonly IInstrumentationsOutputParser _instrumentationsOutputParser;
@@ -39,7 +40,9 @@ namespace AppsTester.Checker.Android
         private readonly ISubmissionFilesProvider _filesProvider;
         private readonly ISubmissionStatusSetter _submissionStatusSetter;
 
-        public AndroidApplicationSubmissionChecker(IAdbClientProvider adbClientProvider,
+        public AndroidApplicationSubmissionChecker(
+            IConfiguration configuration,
+            IAdbClientProvider adbClientProvider,
             IGradleRunner gradleRunner,
             IInstrumentationsOutputParser instrumentationsOutputParser,
             ITemporaryFolderProvider temporaryFolderProvider,
@@ -51,6 +54,7 @@ namespace AppsTester.Checker.Android
             IApkReader apkReader)
             : base(submissionResultSetter)
         {
+            _testTimeout = TimeSpan.FromSeconds(configuration.GetValue<int>("TestTimeoutSeconds", 900));
             _adbClientProvider = adbClientProvider;
             _gradleRunner = gradleRunner;
             _instrumentationsOutputParser = instrumentationsOutputParser;
@@ -231,13 +235,23 @@ namespace AppsTester.Checker.Android
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
+
+            // TODO: cancellation testing
+            var timeoutTask = Task.Delay(_testTimeout);
+
             var tests =
                 Enumerable
                     .Range(0, SimultaneousTestsCount)
                     .Select(_ => TestApplication(processingContext, temporaryFolder));
+            
+            var timeoutOrResults = await Task.WhenAny(timeoutTask, Task.WhenAll(tests));
+            if (timeoutOrResults == timeoutTask)
+            {
+                _logger.LogError("Too long testing of {SubmissionId}", processingContext.Event.SubmissionId);
+                throw new Exception($"Too long testing of {processingContext.Event.SubmissionId}");
+            }
 
-            var testResults = await Task.WhenAll(tests);
-            return testResults.OrderByDescending(testResult => testResult.Grade).First();
+            return (timeoutOrResults as Task<CheckResult[]>).Result.OrderByDescending(testResult => testResult.Grade).First();
         }
 
         private async Task<CheckResult> TestApplication(SubmissionProcessingContext processingContext,
