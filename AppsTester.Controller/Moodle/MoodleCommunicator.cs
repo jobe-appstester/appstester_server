@@ -4,7 +4,7 @@ using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 
 namespace AppsTester.Controller.Moodle
@@ -25,12 +25,12 @@ namespace AppsTester.Controller.Moodle
 
     internal class MoodleCommunicator : IMoodleCommunicator
     {
-        private readonly IConfiguration _configuration;
+        private readonly MoodleOptions _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
 
-        public MoodleCommunicator(IConfiguration configuration, IHttpClientFactory httpClientFactory)
+        public MoodleCommunicator(IOptions<MoodleOptions> options, IHttpClientFactory httpClientFactory)
         {
-            _configuration = configuration;
+            _configuration = options.Value;
             _httpClientFactory = httpClientFactory;
         }
 
@@ -44,7 +44,7 @@ namespace AppsTester.Controller.Moodle
             var queryParams = new Dictionary<string, string>
             {
                 ["moodlewsrestformat"] = "json",
-                ["wstoken"] = _configuration["Moodle:Token"],
+                ["wstoken"] = _configuration.Token,
                 ["wsfunction"] = functionName
             };
 
@@ -52,15 +52,15 @@ namespace AppsTester.Controller.Moodle
                 foreach (var (name, value) in functionParams)
                     queryParams.Add(name, value.ToString());
 
-            var requestUri = $"{_configuration["Moodle:Url"]}/webservice/rest/server.php";
+            var requestUri = $"{_configuration.Url}/webservice/rest/server.php";
             var uriWithParams = QueryHelpers.AddQueryString(requestUri, queryParams);
 
             var request = new HttpRequestMessage(method: HttpMethod.Get, requestUri: uriWithParams);
 
-            if (_configuration["Moodle:BasicToken"] != null)
+            if (_configuration.BasicToken != null)
             {
                 request.Headers.Authorization =
-                    new AuthenticationHeaderValue("Basic", _configuration["Moodle:BasicToken"]);
+                    new AuthenticationHeaderValue("Basic", _configuration.BasicToken);
             }
 
             var response = await httpClient.SendAsync(request, cancellationToken);
@@ -80,7 +80,7 @@ namespace AppsTester.Controller.Moodle
             var queryParams = new Dictionary<string, string>
             {
                 ["moodlewsrestformat"] = "json",
-                ["wstoken"] = _configuration["Moodle:Token"],
+                ["wstoken"] = _configuration.Token,
                 ["wsfunction"] = functionName
             };
 
@@ -88,15 +88,15 @@ namespace AppsTester.Controller.Moodle
                 foreach (var (name, value) in functionParams)
                     queryParams.Add(name, value.ToString());
 
-            var requestUri = $"{_configuration["Moodle:Url"]}/webservice/rest/server.php";
+            var requestUri = $"{_configuration.Url}/webservice/rest/server.php";
             var uriWithParams = QueryHelpers.AddQueryString(requestUri, queryParams);
 
             var request = new HttpRequestMessage(method: HttpMethod.Post, requestUri: uriWithParams);
 
-            if (_configuration["Moodle:BasicToken"] != null)
+            if (_configuration.BasicToken != null)
             {
                 request.Headers.Authorization =
-                    new AuthenticationHeaderValue("Basic", _configuration["Moodle:BasicToken"]);
+                    new AuthenticationHeaderValue("Basic", _configuration.BasicToken);
             }
 
             if (requestParams != null)

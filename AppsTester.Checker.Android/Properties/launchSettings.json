@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "AppsTester.Checker.Android": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
