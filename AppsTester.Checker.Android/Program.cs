@@ -34,7 +34,7 @@ namespace AppsTester.Checker.Android
                     services.AddSingleton<IAdbClientProvider, AdbClientProvider>();
                     services.AddTransient<IApkReader, ApkReader>();
 
-                    services.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
+                    services.AddSingleton<IAdbDevicesProvider, AdbDevicesProvider>();
                     services.AddScoped<IGradleRunner, GradleRunner>();
                     services.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
 
