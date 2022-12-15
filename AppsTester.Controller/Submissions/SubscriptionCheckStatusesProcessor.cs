@@ -9,7 +9,7 @@ using EasyNetQ;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Sentry;
+using Microsoft.Extensions.Logging;
 
 namespace AppsTester.Controller.Submissions
 {
@@ -19,15 +19,19 @@ namespace AppsTester.Controller.Submissions
         private readonly IRabbitBusProvider _rabbitBusProvider;
         private readonly SemaphoreSlim _semaphore = new(initialCount: 1);
         private readonly IMoodleCommunicator _moodleCommunicator;
+        private readonly ILogger<SubscriptionCheckStatusesProcessor> _logger;
 
         public SubscriptionCheckStatusesProcessor(
             IServiceScopeFactory serviceScopeFactory,
             IRabbitBusProvider rabbitBusProvider,
-            IMoodleCommunicator moodleCommunicator)
+            IMoodleCommunicator moodleCommunicator,
+            ILogger<SubscriptionCheckStatusesProcessor> logger)
+
         {
             _serviceScopeFactory = serviceScopeFactory;
             _rabbitBusProvider = rabbitBusProvider;
             _moodleCommunicator = moodleCommunicator;
+            _logger = logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -36,9 +40,7 @@ namespace AppsTester.Controller.Submissions
 
             await rabbitConnection
                 .PubSub
-                .SubscribeAsync<SubmissionCheckStatusEvent>(
-                    subscriptionId: "",
-                    onMessage: async statusEvent =>
+                .SubscribeAsync<SubmissionCheckStatusEvent>(subscriptionId: "", onMessage: async statusEvent =>
                     {
                         await _semaphore.WaitAsync(stoppingToken);
 
@@ -77,7 +79,7 @@ namespace AppsTester.Controller.Submissions
                         }
                         catch (Exception e)
                         {
-                            SentrySdk.CaptureException(e);
+                            _logger.LogError(e, "can't handle event {SubmissionId}, retry in one minute", statusEvent.SubmissionId);
 
                             await rabbitConnection
                                 .Scheduler
@@ -87,7 +89,7 @@ namespace AppsTester.Controller.Submissions
                         {
                             _semaphore.Release();
                         }
-                    });
+                    }, cancellationToken: stoppingToken);
         }
     }
 }

@@ -4,6 +4,7 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>net5.0</TargetFramework>
         <RootNamespace>AppsTester.Checker.Android</RootNamespace>
+        <UserSecretsId>2878d7cb-cd30-4122-a838-2f195bc8e240</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,6 +13,7 @@
       <PackageReference Include="EasyNetQ" Version="6.3.1" />
       <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
       <PackageReference Include="Microsoft.Extensions.Http" Version="5.0.0" />
+      <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="5.0.0" />
       <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
       <PackageReference Include="Sentry" Version="3.21.0" />

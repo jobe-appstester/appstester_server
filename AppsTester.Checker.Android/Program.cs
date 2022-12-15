@@ -22,20 +22,25 @@ namespace AppsTester.Checker.Android
 {
     internal static class Program
     {
-        private static async Task Main()
+        private static async Task Main(string[] args)
         {
             await Host
-                .CreateDefaultBuilder()
+                .CreateDefaultBuilder(args)
                 .ConfigureServices((builder, services) =>
                 {
+                    services.AddOptions<AdbOptions>()
+                        .Bind(builder.Configuration.GetSection("Adb"))
+                        .ValidateDataAnnotations();
                     services.AddSingleton<IAdbClientProvider, AdbClientProvider>();
                     services.AddTransient<IApkReader, ApkReader>();
 
-                    services.AddScoped<IAdbDevicesProvider, AdbDevicesProvider>();
+                    services.AddSingleton<IAdbDevicesProvider, AdbDevicesProvider>();
                     services.AddScoped<IGradleRunner, GradleRunner>();
                     services.AddScoped<IInstrumentationsOutputParser, InstrumentationsOutputParser>();
 
-                    services.Configure<ControllerOptions>(builder.Configuration.GetSection("Controller"));
+                    services.AddOptions<ControllerOptions>()
+                        .Bind(builder.Configuration.GetSection("Controller"))
+                        .ValidateDataAnnotations();
                     services.AddSubmissionChecker<AndroidApplicationSubmissionChecker>(
                         checkerSystemName: "android",
                         parallelExecutions: 6);
@@ -69,6 +74,7 @@ namespace AppsTester.Checker.Android
                 })
                 .ConfigureLogging((_, loggingBuilder) =>
                 {
+                    loggingBuilder.AddConsole();
                     loggingBuilder.AddSentry();
                 })
                 .RunConsoleAsync();
