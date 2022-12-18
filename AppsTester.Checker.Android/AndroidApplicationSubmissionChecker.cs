@@ -215,7 +215,7 @@ namespace AppsTester.Checker.Android
 
             _logger.LogInformation(
                 "Extracted submitted zip «{zipFileParameterName}» into the directory: {temporaryFolder}",
-                temporaryFolder, zipFileParameterName);
+                zipFileParameterName, temporaryFolder);
         }
 
         private async Task<CheckResult> TestApplication(
