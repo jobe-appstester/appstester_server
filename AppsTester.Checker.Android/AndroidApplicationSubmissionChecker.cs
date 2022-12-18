@@ -62,92 +62,6 @@ namespace AppsTester.Checker.Android
             _apkReader = apkReader;
         }
 
-        private async Task ExtractTemplateFilesAsync(ITemporaryFolder temporaryFolder)
-        {
-            var downloadFileStream = await _filesProvider.GetFileAsync("template");
-
-            await using var downloadedFile = new MemoryStream();
-            await downloadFileStream.CopyToAsync(downloadedFile);
-
-            using (var mutableZipArchive = new ZipArchive(downloadedFile, ZipArchiveMode.Update, leaveOpen: true))
-            {
-                var levelsToReduce = mutableZipArchive
-                    .Entries
-                    .Where(e => e.Length != 0)
-                    .Min(e => e.FullName.Count(c => c == '/'));
-
-                if (levelsToReduce > 0)
-                {
-                    var entriesToMove = mutableZipArchive.Entries.ToList();
-                    foreach (var entryToMove in entriesToMove)
-                    {
-                        var newEntryPath = string.Join('/', entryToMove.FullName.Split('/').Skip(levelsToReduce));
-                        if (newEntryPath == string.Empty)
-                            continue;
-
-                        var movedEntry = mutableZipArchive.CreateEntry(newEntryPath);
-
-                        await using (var entryToMoveStream = entryToMove.Open())
-                        await using (var movedEntryStream = movedEntry.Open())
-                            await entryToMoveStream.CopyToAsync(movedEntryStream);
-
-                        entryToMove.Delete();
-                    }
-                }
-            }
-
-            downloadedFile.Seek(offset: 0, SeekOrigin.Begin);
-
-            using var zipArchive = new ZipArchive(downloadedFile);
-
-            zipArchive.ExtractToDirectory(temporaryFolder.AbsolutePath, overwriteFiles: true);
-
-            _logger.LogInformation("Extracted template files into the directory: {temporaryFolder}", temporaryFolder);
-        }
-
-        private async Task ExtractSubmitFilesAsync(ITemporaryFolder temporaryFolder)
-        {
-            await using var downloadFileStream = await _filesProvider.GetFileAsync("submission");
-
-            await using var downloadedFile = new MemoryStream();
-            await downloadFileStream.CopyToAsync(downloadedFile);
-
-            using (var mutableZipArchive = new ZipArchive(downloadedFile, ZipArchiveMode.Update, leaveOpen: true))
-            {
-                var levelsToReduce = mutableZipArchive
-                    .Entries
-                    .Where(e => e.Length != 0)
-                    .Min(e => e.FullName.Count(c => c == '/'));
-
-                if (levelsToReduce > 0)
-                {
-                    var entriesToMove = mutableZipArchive.Entries.ToList();
-                    foreach (var entryToMove in entriesToMove)
-                    {
-                        var newEntryPath = string.Join('/', entryToMove.FullName.Split('/').Skip(levelsToReduce));
-                        if (newEntryPath == string.Empty)
-                            continue;
-
-                        var movedEntry = mutableZipArchive.CreateEntry(newEntryPath);
-
-                        await using (var entryToMoveStream = entryToMove.Open())
-                        await using (var movedEntryStream = movedEntry.Open())
-                            await entryToMoveStream.CopyToAsync(movedEntryStream);
-
-                        entryToMove.Delete();
-                    }
-                }
-            }
-
-            downloadedFile.Seek(offset: 0, SeekOrigin.Begin);
-
-            using var zipArchive = new ZipArchive(downloadedFile);
-
-            zipArchive.ExtractToDirectory(temporaryFolder.AbsolutePath, overwriteFiles: true);
-
-            _logger.LogInformation("Extracted submit files into the directory: {temporaryFolder}", temporaryFolder);
-        }
-
         protected override async Task<object> CheckSubmissionCoreAsync(SubmissionProcessingContext processingContext)
         {
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("checking_started"));
@@ -158,34 +72,13 @@ namespace AppsTester.Checker.Android
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("unzip_files"));
 
-            using (_logger.BeginScope(new Dictionary<string, string> { { "extractingFile", "submit" } }))
-            {
-                try
-                {
-                    await ExtractSubmitFilesAsync(temporaryFolder);
-                }
-                catch (ZipException e)
-                {
-                    _logger.LogError(e, "Cannot extract submitted file");
+            var submitExtractionResult = await TryExtractSubmittedZipFileAsync(temporaryFolder, "submit");
+            if (!submitExtractionResult.IsSuccess)
+                return submitExtractionResult.ValidationErrorResult;
 
-                    return new ValidationErrorResult(ValidationError: "Cannot extract submitted file.");
-                }
-                catch (InvalidDataException e)
-                {
-                    _logger.LogError(e, "Cannot extract submitted file");
-
-                    return new ValidationErrorResult(ValidationError: "Cannot extract submitted file.");
-                }
-                catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
-                {
-                    _logger.LogError(e, "can't find files for submission");
-
-                    return new ValidationErrorResult(
-                        ValidationError: "Internal check error: can't find files for submission.");
-                }
-            }
-
-            await ExtractTemplateFilesAsync(temporaryFolder);
+            var templateExtractionResult = await TryExtractSubmittedZipFileAsync(temporaryFolder, "template");
+            if (!templateExtractionResult.IsSuccess)
+                return templateExtractionResult.ValidationErrorResult;
 
             if (!_gradleRunner.IsGradlewInstalledInDirectory(temporaryFolder.AbsolutePath))
                 return new ValidationErrorResult(
@@ -231,8 +124,6 @@ namespace AppsTester.Checker.Android
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
-
-
             var tests =
                 Enumerable
                     .Range(0, SimultaneousTestsCount)
@@ -242,8 +133,88 @@ namespace AppsTester.Checker.Android
             return testResults.OrderByDescending(testResult => testResult.Grade).First();
         }
 
-        private async Task<CheckResult> TestApplication(SubmissionProcessingContext processingContext,
-                                                        ITemporaryFolder temporaryFolder)
+        private async Task<(bool IsSuccess, ValidationErrorResult ValidationErrorResult)> TryExtractSubmittedZipFileAsync(
+            ITemporaryFolder temporaryFolder,
+            string zipFileParameterName)
+        {
+            using var _ = _logger.BeginScope(
+                new Dictionary<string, string> { { "extractingFile", zipFileParameterName } });
+
+            try
+            {
+                await ExtractSubmittedZipFileAsync(temporaryFolder, zipFileParameterName);
+            }
+            catch (ZipException e)
+            {
+                _logger.LogError(e, "Cannot extract submitted file");
+
+                return (false, new ValidationErrorResult(ValidationError: "Cannot extract submitted file."));
+            }
+            catch (InvalidDataException e)
+            {
+                _logger.LogError(e, "Cannot extract submitted file");
+
+                return (false, new ValidationErrorResult(ValidationError: "Cannot extract submitted file."));
+            }
+            catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
+            {
+                _logger.LogError(e, "can't find files for submission");
+
+                return (false, new ValidationErrorResult(
+                    ValidationError: "Internal check error: can't find files for submission."));
+            }
+
+            return (true, null);
+        }
+        
+        private async Task ExtractSubmittedZipFileAsync(ITemporaryFolder temporaryFolder, string zipFileParameterName)
+        {
+            await using var downloadFileStream = await _filesProvider.GetFileAsync(zipFileParameterName);
+
+            await using var downloadedFile = new MemoryStream();
+            await downloadFileStream.CopyToAsync(downloadedFile);
+
+            using (var mutableZipArchive = new ZipArchive(downloadedFile, ZipArchiveMode.Update, leaveOpen: true))
+            {
+                var levelsToReduce = mutableZipArchive
+                    .Entries
+                    .Where(e => e.Length != 0)
+                    .Min(e => e.FullName.Count(c => c == '/'));
+
+                if (levelsToReduce > 0)
+                {
+                    var entriesToMove = mutableZipArchive.Entries.ToList();
+                    foreach (var entryToMove in entriesToMove)
+                    {
+                        var newEntryPath = string.Join('/', entryToMove.FullName.Split('/').Skip(levelsToReduce));
+                        if (newEntryPath == string.Empty)
+                            continue;
+
+                        var movedEntry = mutableZipArchive.CreateEntry(newEntryPath);
+
+                        await using (var entryToMoveStream = entryToMove.Open())
+                        await using (var movedEntryStream = movedEntry.Open())
+                            await entryToMoveStream.CopyToAsync(movedEntryStream);
+
+                        entryToMove.Delete();
+                    }
+                }
+            }
+
+            downloadedFile.Seek(offset: 0, SeekOrigin.Begin);
+
+            using var zipArchive = new ZipArchive(downloadedFile);
+
+            zipArchive.ExtractToDirectory(temporaryFolder.AbsolutePath, overwriteFiles: true);
+
+            _logger.LogInformation(
+                "Extracted submitted zip «{zipFileParameterName}» into the directory: {temporaryFolder}",
+                temporaryFolder, zipFileParameterName);
+        }
+
+        private async Task<CheckResult> TestApplication(
+            SubmissionProcessingContext processingContext,
+            ITemporaryFolder temporaryFolder)
         {
             var adbClient = _adbClientProvider.GetAdbClient();
 
