@@ -161,7 +161,7 @@ namespace AppsTester.Checker.Android
                 _logger.LogError(e, "can't find files for submission");
 
                 return (false, new ValidationErrorResult(
-                    ValidationError: "Internal check error: can't find files for submission."));
+                    ValidationError: $"Internal check error: can't find files for {zipFileParameterName}."));
             }
 
             return (true, null);
