@@ -72,9 +72,9 @@ namespace AppsTester.Checker.Android
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("unzip_files"));
 
-            var submitExtractionResult = await TryExtractSubmittedZipFileAsync(temporaryFolder, "submission");
-            if (!submitExtractionResult.IsSuccess)
-                return submitExtractionResult.ValidationErrorResult;
+            var submissionExtractionResult = await TryExtractSubmittedZipFileAsync(temporaryFolder, "submission");
+            if (!submissionExtractionResult.IsSuccess)
+                return submissionExtractionResult.ValidationErrorResult;
 
             var templateExtractionResult = await TryExtractSubmittedZipFileAsync(temporaryFolder, "template");
             if (!templateExtractionResult.IsSuccess)
