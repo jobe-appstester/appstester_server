@@ -148,13 +148,19 @@ namespace AppsTester.Checker.Android
             {
                 _logger.LogError(e, "Cannot extract submitted file");
 
-                return (false, new ValidationErrorResult(ValidationError: "Cannot extract submitted file."));
+                return (
+                    IsSuccess: false,
+                    ValidationErrorResult: new ValidationErrorResult(
+                        ValidationError: $"Cannot extract submitted {zipFileParameterName} file."));
             }
             catch (InvalidDataException e)
             {
                 _logger.LogError(e, "Cannot extract submitted file");
 
-                return (false, new ValidationErrorResult(ValidationError: "Cannot extract submitted file."));
+                return (
+                    IsSuccess: false,
+                    ValidationErrorResult:new ValidationErrorResult(
+                        ValidationError: $"Cannot extract submitted {zipFileParameterName} file."));
             }
             catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
             {
