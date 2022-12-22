@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AppsTester.Checker.Android.Metrics
@@ -25,20 +26,27 @@ namespace AppsTester.Checker.Android.Metrics
         /// <summary>
         /// Stores map of serial to label to prevent negative counter number on diconnect events by adb
         /// </summary>
-        private readonly ConcurrentDictionary<string, KeyValuePair<string, object>> connectedDevices = new();
+        private readonly ConcurrentDictionary<string, Measurement<int>> connectedDevices = new();
         public MetricsService()
         {
             meter = new Meter(IMetricsService.MeterName);
-            meter.CreateObservableUpDownCounter("checker_devices_total", () => connectedDevices.Select(kvp => new Measurement<int>(1, kvp.Value)));
+            meter.CreateObservableUpDownCounter("checker_devices_total", () => connectedDevices.Select(kvp => kvp.Value));
         }
+
         public void CaptureDeviceConnected(string serial)
         {
-            connectedDevices.TryAdd(serial, new KeyValuePair<string, object>("serial", serial));
+            UpdateMeasurment(serial, 1);
         }
 
         public void CaptureDeviceDisconnected(string serial)
         {
-            connectedDevices.TryRemove(serial, out _);
+            UpdateMeasurment(serial, 0);
+        }
+
+        private void UpdateMeasurment(string serial, int count)
+        {
+            var measurment = new Measurement<int>(count, new KeyValuePair<string, object>("serial", serial));
+            connectedDevices.AddOrUpdate(serial, measurment, (_, _) => measurment);
         }
     }
 
