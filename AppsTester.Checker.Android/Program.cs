@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Apk;
@@ -26,6 +27,10 @@ namespace AppsTester.Checker.Android
         {
             await Host
                 .CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration((hostingContext, config) =>
+                {
+                    config.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
+                })
                 .ConfigureServices((builder, services) =>
                 {
                     services.AddOptions<AdbOptions>()

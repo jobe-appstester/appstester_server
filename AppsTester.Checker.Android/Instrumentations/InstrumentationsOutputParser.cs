@@ -53,7 +53,8 @@ namespace AppsTester.Checker.Android.Instrumentations
                     }
                     else
                     {
-                        statusResults.Add("result_code", match.Groups[2].Value.Trim());
+                        statusResults.Add("result_code", match.Groups[2].Value.Split('\n').First()
+                            .Trim());
 
                         if (match.Groups[2].Value.Trim() != "1")
                             statuses.Add(statusResults.ToDictionary(p => p.Key, p => p.Value.Trim()));

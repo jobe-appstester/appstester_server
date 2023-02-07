@@ -36,7 +36,7 @@ namespace AppsTester.Shared.SubmissionChecker
                     eventId,
                     state,
                     exception,
-                    formatter: (s, e) => $"[{submissionId}] {formatter(s, e)}"
+                    formatter: (s, e) => $"{DateTime.Now.ToString("MM/dd/yyyy h:mm tt")} [{submissionId}] {formatter(s, e)}"
                 );
         }
 
