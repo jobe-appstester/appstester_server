@@ -27,10 +27,6 @@ namespace AppsTester.Checker.Android
         {
             await Host
                 .CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration((hostingContext, config) =>
-                {
-                    config.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
-                })
                 .ConfigureServices((builder, services) =>
                 {
                     services.AddOptions<AdbOptions>()
