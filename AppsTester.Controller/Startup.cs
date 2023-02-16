@@ -39,7 +39,7 @@ namespace AppsTester.Controller
 
             services.AddHttpClient();
 
-            services.AddTransient<IMoodleCommunicator, MoodleCommunicator>();
+            services.AddSingleton<IMoodleCommunicator, MoodleCommunicator>();
 
             services.AddHostedService<SubscriptionCheckResultsProcessor>();
             services.AddHostedService<SubscriptionCheckStatusesProcessor>();
