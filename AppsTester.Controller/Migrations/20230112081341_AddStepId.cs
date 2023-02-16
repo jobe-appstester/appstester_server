@@ -6,8 +6,13 @@ namespace AppsTester.Controller.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.RenameColumn(
+                name: "AttemptId",
+                table: "SubmissionChecks",
+                newName: "AttemptStepId");
+            
             migrationBuilder.AddColumn<string>(
-                name: "AttemptStepId",
+                name: "AttemptId",
                 table: "SubmissionChecks",
                 type: "integer",
                 nullable: false,
@@ -17,8 +22,13 @@ namespace AppsTester.Controller.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "AttemptStepId",
+                name: "AttemptId",
                 table: "SubmissionChecks");
+            
+            migrationBuilder.RenameColumn(
+                name: "AttemptStepId",
+                table: "SubmissionChecks",
+                newName: "AttemptId");
         }
     }
 }
