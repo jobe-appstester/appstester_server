@@ -23,7 +23,10 @@ sequenceDiagram
     Controller ->> Moodle: Обновление результата решения
 
 ```
-
+## Конфигурация
+В рамках разработки параметры можно задавать через [user secrets](https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets)
+### AppTester.Checker.Android
+* `Adb:ExecutablePath`: Полный путь к [adb серверу](https://developer.android.com/studio/command-line/adb). Если указан - будет запущен, если еще не был.
 
 ## Вспомогательные сервисы
 Для работы в режиме разработки вспомогательные сервисы наряду с разрабатываемыми представлены в `docker-compose.yml`. При запуске они хранят данные под папкой `dev-data` в корне проекта.

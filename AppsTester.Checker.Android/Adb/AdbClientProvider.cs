@@ -23,13 +23,15 @@ namespace AppsTester.Checker.Android.Adb
         private readonly IMetricsService _metricsService;
         private readonly ILogger<AdbClientProvider> _logger;
 
-        public AdbClientProvider(IConfiguration configuration, IOptions<AdbOptions> adbOptions, IMetricsService metricsService, ILogger<AdbClientProvider> logger)
+        public AdbClientProvider(IOptions<AdbOptions> adbOptions, IMetricsService metricsService, ILogger<AdbClientProvider> logger)
         {
             var dnsEndPoint = new DnsEndPoint(adbOptions.Value.Host, port: 5037);
             _metricsService = metricsService;
             _logger = logger;
-
-            SetupAdbServer(Path.Combine(configuration.GetValue<string>("ANDROID_SDK_ROOT"), "platform-tools", RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "adb.exe" : "adb"));
+            if (!string.IsNullOrEmpty(adbOptions.Value.ExecutablePath))
+            {
+                SetupAdbServer(adbOptions.Value.ExecutablePath);
+            }
             SetupAdbClient(adbOptions.Value, dnsEndPoint);
             SetupDeviceMonitor(dnsEndPoint);
         }
