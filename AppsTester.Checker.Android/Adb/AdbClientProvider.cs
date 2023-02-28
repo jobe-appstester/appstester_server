@@ -86,7 +86,14 @@ namespace AppsTester.Checker.Android.Adb
 
         public void Dispose()
         {
-            _deviceMonitor.Dispose();
+            try
+            {
+                _deviceMonitor.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error while disposing device monitor");
+            }
         }
     }
 }
