@@ -1,0 +1,37 @@
+name: MIREA Update Controller
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: mirea-testing-system
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build the Docker image
+      run: sudo docker build . --file AppsTester.Controller/Dockerfile --tag appstester-controller:${{ github.sha }}
+  restart:
+    runs-on: mirea-testing-system
+    needs: build
+    environment: mirea
+    steps:
+    - name: stop running image
+      run: sudo docker stop appstester-controller-mirea || true
+    - name: remove running image
+      run: sudo docker rm appstester-controller-mirea || true
+    - name: start built image
+      run: >
+        sudo docker run
+        -d
+        --name appstester-controller-mirea
+        --restart=unless-stopped
+        -p 8080:80
+        -v /tmp/:/tmp/
+        -e 'ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}'
+        -e 'ConnectionStrings__RabbitMq=${{ secrets.RABBITMQ_CONNECTION_STRING }}'
+        -e 'Moodle__Url=${{ secrets.MOODLE_URL }}'
+        -e 'Moodle__Token=${{ secrets.MOODLE_TOKEN }}'
+        -e 'Sentry__Dsn=${{ secrets.SENTRY_DSN }}'
+        appstester-controller:${{ github.sha }}
