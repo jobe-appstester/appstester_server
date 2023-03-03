@@ -22,6 +22,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ci", "ci", "{87227351-3E72-
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\update-android-checker.yml = .github\workflows\update-android-checker.yml
 		.github\workflows\update-controller.yml = .github\workflows\update-controller.yml
+		.github\workflows\mirea-update-checker.yml = .github\workflows\mirea-update-checker.yml
+		.github\workflows\mirea-update-controller.yml = .github\workflows\mirea-update-controller.yml		
 	EndProjectSection
 EndProject
 Global
