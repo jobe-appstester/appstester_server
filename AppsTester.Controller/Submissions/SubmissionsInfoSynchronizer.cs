@@ -28,12 +28,12 @@ namespace AppsTester.Controller.Submissions
         public SubmissionsInfoSynchronizer(
             IServiceScopeFactory serviceScopeFactory,
             IRabbitBusProvider rabbitBusProvider,
+            IMoodleService moodleService,
             ILogger<SubmissionsInfoSynchronizer> logger)
         {
             _serviceScopeFactory = serviceScopeFactory;
             _rabbitBusProvider = rabbitBusProvider;
-            using var scope = serviceScopeFactory.CreateScope();
-            _moodleService = scope.ServiceProvider.GetRequiredService<IMoodleService>();
+            _moodleService = moodleService;
             _logger = logger;
         }
 
@@ -57,7 +57,7 @@ namespace AppsTester.Controller.Submissions
                     {
                         var attemptId = submissionUnit.AttemptId;
                         var attemptStepIds = submissionUnit.AttemptStepsIds;
-                        var lastSendingDateTime = await dbContext.SubmissionChecks
+                        var latestCheckDateTime = await dbContext.SubmissionChecks
                             .Where(x => x.AttemptId == attemptId)
                             .Select(x => x.SendingDateTimeUtc)
                             .OrderByDescending(x => x)
@@ -66,18 +66,27 @@ namespace AppsTester.Controller.Submissions
                         {
                             try
                             {
-                                var sc = await dbContext.SubmissionChecks
+                                var submissionCheckRecord = await dbContext.SubmissionChecks
                                     .Where(x => x.AttemptStepId == attemptStepId)
-                                    .OrderByDescending(s => s.SendingDateTimeUtc).FirstOrDefaultAsync(stoppingToken);
+                                    .OrderByDescending(s => s.SendingDateTimeUtc)
+                                    .FirstOrDefaultAsync(stoppingToken);
 
-                                if (sc is not null && sc.SendingDateTimeUtc != lastSendingDateTime)
+                                // if there is a record for given stepID in DB, and it isn't latest sent submission
+                                if (submissionCheckRecord != null && submissionCheckRecord.SendingDateTimeUtc != latestCheckDateTime)
                                 {
-                                    await _moodleService.SetSubmissionStatusAsync(sc.AttemptStepId, sc.LastSerializedStatus, stoppingToken);
-                                    await _moodleService.SetSubmissionResultAsync(sc.AttemptStepId, sc.SerializedResult,
+                                    await _moodleService.SetSubmissionStatusAsync(
+                                        submissionCheckRecord.AttemptStepId, 
+                                        submissionCheckRecord.LastSerializedStatus, 
+                                        stoppingToken);
+                                    await _moodleService.SetSubmissionResultAsync(
+                                        submissionCheckRecord.AttemptStepId, 
+                                        submissionCheckRecord.SerializedResult,
                                         stoppingToken);
                                 }
-                                else if (sc is null || sc.SendingDateTimeUtc == lastSendingDateTime &&
-                                         sc.SerializedResult is not null)
+                                // if this submission was never checked before
+                                // OR if it's latest sent submission with a result (sent back to be regraded)
+                                else if (submissionCheckRecord == null || 
+                                         submissionCheckRecord.SendingDateTimeUtc == latestCheckDateTime && submissionCheckRecord.SerializedResult != null)
                                 {
                                     var submission = await _moodleService.GetSubmissionAsync(attemptStepId, stoppingToken);
 
@@ -130,7 +139,7 @@ namespace AppsTester.Controller.Submissions
                             }
                             catch (Exception e)
                             {
-                                _logger.LogError(e, "can't handle attempt {attemptId}", attemptId);
+                                _logger.LogError(e, "can't handle attemptStep with ID {attemptStepId}", attemptStepId);
                             }
                             finally
                             {

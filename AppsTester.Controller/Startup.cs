@@ -40,11 +40,11 @@ namespace AppsTester.Controller
             services.AddHttpClient();
 
             services.AddSingleton<IMoodleCommunicator, MoodleCommunicator>();
-
+            services.AddSingleton<IMoodleService, MoodleService>();
+            
             services.AddHostedService<SubscriptionCheckResultsProcessor>();
             services.AddHostedService<SubscriptionCheckStatusesProcessor>();
             services.AddHostedService<SubmissionsInfoSynchronizer>();
-            services.AddSingleton<IMoodleService, MoodleService>();
             services.AddSignalR();
         }
 
