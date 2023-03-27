@@ -1,0 +1,60 @@
+version: '3.9'
+
+services:
+  controller:
+    build:
+      context: .
+      dockerfile: AppsTester.Controller/Dockerfile
+    environment:
+      ConnectionStrings__RabbitMq: amqp://root:root@rabbitmq:5672
+  android-checker:
+    build:
+      context: .
+      dockerfile: AppsTester.Checker.Android/Dockerfile
+    environment:
+      ConnectionStrings__RabbitMq: amqp://root:root@rabbitmq:5672
+  rabbitmq:
+    image: rabbitmq:3.8.26-management-alpine
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: 'root'
+      RABBITMQ_DEFAULT_PASS: 'root'
+    volumes:
+      - ./dev-data/rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector:0.67.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ./dev-data/otel/output:/etc/output # Store the logs
+    ports:
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "4317:4317"   # OTLP gRPC receiver
+  prometheus:
+    image: prom/prometheus:v2.40.6
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: wget -O - http://localhost:9090
+      interval: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 40s
+
+  grafana:
+    image: grafana/grafana-oss:9.3.1
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./dev-data/grafana/storage:/var/lib/grafana

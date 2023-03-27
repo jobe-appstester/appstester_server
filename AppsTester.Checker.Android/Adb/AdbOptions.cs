@@ -11,5 +11,6 @@ namespace AppsTester.Checker.Android.Adb
     {
         [Required]
         public string Host { get; set; }
+        public string ExecutablePath { get; set; }
     }
 }
