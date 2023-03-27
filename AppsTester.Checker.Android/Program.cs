@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Apk;
