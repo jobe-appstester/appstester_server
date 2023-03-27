@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+﻿FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
 COPY ["AppsTester.Checker.Android/AppsTester.Checker.Android.csproj", "AppsTester.Checker.Android/"]
 RUN dotnet restore "AppsTester.Checker.Android/AppsTester.Checker.Android.csproj"
@@ -7,7 +7,7 @@ WORKDIR "/src/AppsTester.Checker.Android"
 RUN dotnet build "AppsTester.Checker.Android.csproj" -c Release -o /app/build
 RUN dotnet publish "AppsTester.Checker.Android.csproj" -c Release -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:5.0-focal AS final
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-focal AS final
 RUN apt-get update && apt-get upgrade -y
 ENV SDK_URL="https://dl.google.com/android/repository/commandlinetools-linux-6858069_latest.zip" \
     ANDROID_HOME="/usr/local/android-sdk"
