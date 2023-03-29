@@ -96,7 +96,7 @@ namespace AppsTester.Checker.Android
                 return new ValidationErrorResult(ValidationError: $"Can't get project list of submission: {Environment.NewLine}{Environment.NewLine}StdErr: {Environment.NewLine}{submissionProjects.StandardError}{Environment.NewLine}{Environment.NewLine}StdOut: {Environment.NewLine}{submissionProjects.StandardOutput}");
             }
 
-            if (submissionProjects.StandardOutput.Split(Environment.NewLine).Count(l => l.Contains("Project")) > 1)
+            if (submissionProjects.StandardOutput.Split(Environment.NewLine).Count(l => l.Contains("Project '")) > 1)
             {
                 return new ValidationErrorResult(ValidationError: "Submission must have only one project.");
             }
