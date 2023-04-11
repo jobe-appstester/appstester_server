@@ -7,6 +7,7 @@ using AppsTester.Checker.Android.Apk;
 using AppsTester.Checker.Android.Devices;
 using AppsTester.Checker.Android.Gradle;
 using AppsTester.Checker.Android.Instrumentations;
+using AppsTester.Checker.Android.Metrics;
 using AppsTester.Shared.Files;
 using AppsTester.Shared.RabbitMq;
 using AppsTester.Shared.SubmissionChecker;
@@ -25,7 +26,7 @@ namespace AppsTester.Checker.Android
     {
         private static async Task Main(string[] args)
         {
-            await Host
+            var app = Host
                 .CreateDefaultBuilder(args)
                 .ConfigureServices((builder, services) =>
                 {
@@ -68,6 +69,8 @@ namespace AppsTester.Checker.Android
                             provider.GetService<IAdbDevicesProvider>(), distributedLockProvider);
                     });
 
+                    services.AddMetrics(builder.Configuration);
+
                     services.AddTemporaryFolders();
                     services.AddRabbitMq();
 
@@ -78,7 +81,13 @@ namespace AppsTester.Checker.Android
                     loggingBuilder.AddConsole();
                     loggingBuilder.AddSentry();
                 })
-                .RunConsoleAsync();
+                .UseConsoleLifetime()
+                .Build();
+
+            // initialize avd provider for devices listening
+            app.Services.GetRequiredService<IAdbClientProvider>();
+
+            await app.RunAsync();
         }
     }
 }
