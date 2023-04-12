@@ -1,6 +1,8 @@
 using System;
 using AppsTester.Controller.Files;
 using AppsTester.Controller.Moodle;
+using AppsTester.Controller.Services;
+using AppsTester.Controller.Services.Moodle;
 using AppsTester.Controller.Submissions;
 using AppsTester.Shared.RabbitMq;
 using Microsoft.AspNetCore.Builder;
@@ -37,12 +39,12 @@ namespace AppsTester.Controller
 
             services.AddHttpClient();
 
-            services.AddTransient<IMoodleCommunicator, MoodleCommunicator>();
-
+            services.AddSingleton<IMoodleCommunicator, MoodleCommunicator>();
+            services.AddSingleton<IMoodleService, MoodleService>();
+            
             services.AddHostedService<SubscriptionCheckResultsProcessor>();
             services.AddHostedService<SubscriptionCheckStatusesProcessor>();
             services.AddHostedService<SubmissionsInfoSynchronizer>();
-
             services.AddSignalR();
         }
 

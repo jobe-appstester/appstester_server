@@ -32,5 +32,6 @@ jobs:
         -e 'ConnectionStrings__DevicesSynchronizationRedis=${{ secrets.DEVICES_SYNCHRONIZATION_REDIS_CONNECTION_STRING }}'
         -e 'Adb__Host=${{ secrets.ADB_HOST }}'
         -e 'Controller__Url=${{ secrets.CONTROLLER_URL }}'
+        -e 'OtlpExporterEndpoint=${{ secrets.OTLP_EXPORTER_ENDPOINT }}'
         -e 'Sentry__Dsn=${{ secrets.SENTRY_DSN }}'
         appstester-android-checker:${{ github.sha }}

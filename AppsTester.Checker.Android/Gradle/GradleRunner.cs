@@ -54,7 +54,6 @@ namespace AppsTester.Checker.Android.Gradle
             try
             {
                 EnsureGradlewExecutionRights(tempDirectory, taskName);
-
                 _logger.LogInformation(
                     "Started gradle task \"{taskName}\" in directory: {tempDirectory}", taskName, tempDirectory);
 
@@ -70,7 +69,8 @@ namespace AppsTester.Checker.Android.Gradle
                         UseShellExecute = false,
                         Environment =
                         {
-                            ["ANDROID_SDK_ROOT"] = _configuration["ANDROID_SDK_ROOT"],
+                            ["ANDROID_ROOT_SDK"] = _configuration["ANDROID_SDK_ROOT"],
+                            ["ANDROID_SDK_ROOT"] = _configuration["ANDROID_SDK_ROOT"]
                         }
                     }
                 };
@@ -107,7 +107,7 @@ namespace AppsTester.Checker.Android.Gradle
             try
             {
                 // ReSharper disable once ObjectCreationAsStatement
-                new UnixFileInfo(Path.Join(tempDirectory, "gradlew"))
+                new UnixFileInfo(Path.Join(tempDirectory, _gradlewExecutable))
                 {
                     FileAccessPermissions = FileAccessPermissions.UserExecute
                 };

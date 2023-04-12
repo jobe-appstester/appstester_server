@@ -1,5 +1,9 @@
 using System;
+using System.IO;
 using System.Net;
+using System.Runtime.InteropServices;
+using AppsTester.Checker.Android.Metrics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharpAdbClient;
@@ -15,15 +19,30 @@ namespace AppsTester.Checker.Android.Adb
     {
         private IAdbClient _adbClient;
         private IDeviceMonitor _deviceMonitor;
+
+        private readonly IMetricsService _metricsService;
         private readonly ILogger<AdbClientProvider> _logger;
 
-        public AdbClientProvider(IOptions<AdbOptions> adbOptions, ILogger<AdbClientProvider> logger)
+        public AdbClientProvider(IOptions<AdbOptions> adbOptions, IMetricsService metricsService, ILogger<AdbClientProvider> logger)
         {
             var dnsEndPoint = new DnsEndPoint(adbOptions.Value.Host, port: 5037);
+            _metricsService = metricsService;
             _logger = logger;
-
+            if (!string.IsNullOrEmpty(adbOptions.Value.ExecutablePath))
+            {
+                SetupAdbServer(adbOptions.Value.ExecutablePath);
+            }
             SetupAdbClient(adbOptions.Value, dnsEndPoint);
             SetupDeviceMonitor(dnsEndPoint);
+        }
+        private void SetupAdbServer(string adbPath)
+        {
+            if (!AdbServer.Instance.GetStatus().IsRunning)
+            {
+                _logger.LogInformation("ADB server {adbPath} is not running", adbPath);
+                var startResult = AdbServer.Instance.StartServer(adbPath, false);
+                _logger.LogInformation("ADB server start result {startResult}", startResult);
+            }
         }
         private void SetupAdbClient(AdbOptions configuration, EndPoint dnsEndPoint)
         {
@@ -43,11 +62,22 @@ namespace AppsTester.Checker.Android.Adb
         {
             _deviceMonitor = new DeviceMonitor(new AdbSocket(dnsEndPoint));
 
-            _deviceMonitor.DeviceConnected += (_, args) => _logger.LogInformation("Connected device with serial {Serial}", args.Device.Serial);
+            _deviceMonitor.DeviceConnected += (_, args) =>
+            {
+                _metricsService.CaptureDeviceConnected(args.Device.Serial);
+                _logger.LogInformation("Connected device with serial {Serial}", args.Device.Serial);
+            };
 
-            _deviceMonitor.DeviceDisconnected += (_, args) => _logger.LogInformation("Disconnected device with serial {Serial}", args.Device.Serial);
+            _deviceMonitor.DeviceDisconnected += (_, args) =>
+            {
+                _metricsService.CaptureDeviceDisconnected(args.Device.Serial);
+                _logger.LogInformation("Disconnected device with serial {Serial}", args.Device.Serial);
+            };
 
-            _deviceMonitor.DeviceChanged += (_, args) => _logger.LogInformation("Changed device with serial {Serial}", args.Device.Serial);
+            _deviceMonitor.DeviceChanged += (_, args) =>
+            {
+                _logger.LogInformation("Changed device with serial {Serial}", args.Device.Serial);
+            };
 
             _deviceMonitor.Start();
         }
@@ -56,7 +86,14 @@ namespace AppsTester.Checker.Android.Adb
 
         public void Dispose()
         {
-            _deviceMonitor.Dispose();
+            try
+            {
+                _deviceMonitor.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error while disposing device monitor");
+            }
         }
     }
 }

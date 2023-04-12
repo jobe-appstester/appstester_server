@@ -264,14 +264,14 @@ namespace AppsTester.Checker.Android
 
             var consoleOutputReceiver = new ConsoleOutputReceiver();
 
-            _logger.LogInformation("Started testing of Android application");
+            _logger.LogInformation("Started testing of Android application on device {deviceData}", deviceData);
 
             await adbClient.ExecuteRemoteCommandAsync(
                 $"am instrument -r -w {await _apkReader.ReadPackageNameAsync(testingApkFile)}",
                 deviceData,
                 consoleOutputReceiver, Encoding.UTF8, processingContext.CancellationToken);
 
-            _logger.LogInformation("Completed testing of Android application");
+            _logger.LogInformation("Completed testing of Android application on device {deviceData}", deviceData);
 
             var consoleOutput = consoleOutputReceiver.ToString();
 

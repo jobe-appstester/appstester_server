@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
+        <TargetFramework>net6.0</TargetFramework>
         <UserSecretsId>055614a4-0e7c-4ca2-bf98-752430be1e82</UserSecretsId>
     </PropertyGroup>
 
@@ -29,5 +29,5 @@
     <ItemGroup>
       <None Remove="app.db" />
     </ItemGroup>
-
+    
 </Project>
