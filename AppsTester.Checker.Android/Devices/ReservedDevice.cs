@@ -1,6 +1,6 @@
 using System;
 using Medallion.Threading;
-using SharpAdbClient;
+using AdvancedSharpAdbClient;
 
 namespace AppsTester.Checker.Android.Devices
 {

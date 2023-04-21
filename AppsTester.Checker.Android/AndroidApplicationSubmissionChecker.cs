@@ -18,8 +18,8 @@ using AppsTester.Shared.Files;
 using AppsTester.Shared.SubmissionChecker;
 using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Extensions.Logging;
-using SharpAdbClient;
-using SharpAdbClient.DeviceCommands;
+using AdvancedSharpAdbClient;
+using AdvancedSharpAdbClient.DeviceCommands;
 
 namespace AppsTester.Checker.Android
 {
