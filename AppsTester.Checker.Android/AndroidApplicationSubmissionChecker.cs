@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Apk;
@@ -27,6 +28,8 @@ namespace AppsTester.Checker.Android
     internal class AndroidApplicationSubmissionChecker : SubmissionChecker
     {
         private const int SimultaneousTestsCount = 3;
+        private readonly TimeSpan _testTimeout = TimeSpan.FromMinutes(10);
+
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IGradleRunner _gradleRunner;
         private readonly IInstrumentationsOutputParser _instrumentationsOutputParser;
@@ -124,10 +127,17 @@ namespace AppsTester.Checker.Android
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
+            var testTimeoutCancellationTokenSource = new CancellationTokenSource();
+            testTimeoutCancellationTokenSource.CancelAfter(_testTimeout);
+
+            var testCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
+                testTimeoutCancellationTokenSource.Token,
+                processingContext.CancellationToken);
+
             var tests =
                 Enumerable
                     .Range(0, SimultaneousTestsCount)
-                    .Select(_ => TestApplication(processingContext, temporaryFolder));
+                    .Select(_ => TestApplicationAsync(temporaryFolder, testCancellationTokenSource.Token));
 
             var testResults = await Task.WhenAll(tests);
             return testResults.OrderByDescending(testResult => testResult.Grade).First();
@@ -218,13 +228,13 @@ namespace AppsTester.Checker.Android
                 zipFileParameterName, temporaryFolder);
         }
 
-        private async Task<CheckResult> TestApplication(
-            SubmissionProcessingContext processingContext,
-            ITemporaryFolder temporaryFolder)
+        private async Task<CheckResult> TestApplicationAsync(
+            ITemporaryFolder temporaryFolder,
+            CancellationToken cancellationToken)
         {
             var adbClient = _adbClientProvider.GetAdbClient();
 
-            using var device = await _reservedDevicesProvider.ReserveDeviceAsync(processingContext.CancellationToken);
+            using var device = await _reservedDevicesProvider.ReserveDeviceAsync(cancellationToken);
             var deviceData = device.DeviceData;
 
             var packageManager = new PackageManager(adbClient, deviceData);
@@ -235,28 +245,28 @@ namespace AppsTester.Checker.Android
 
             try
             {
-                packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(applicationApkFile));
+                await packageManager.UninstallPackageAsync(await _apkReader.ReadPackageNameAsync(applicationApkFile), cancellationToken);
             }
             catch (PackageInstallationException e)
             {
                 _logger.LogError(e, "can't uninstall package");
             }
 
-            packageManager.InstallPackage(applicationApkFile, reinstall: false);
+            await packageManager.InstallPackageAsync(applicationApkFile, reinstall: false, cancellationToken);
             _logger.LogInformation("Install debug application in directory: {temporaryFolder}", temporaryFolder);
 
             var testingApkFile = Path.Join(baseApksPath, "androidTest", "debug", "app-debug-androidTest.apk");
 
             try
             {
-                packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(testingApkFile));
+                await packageManager.UninstallPackageAsync(await _apkReader.ReadPackageNameAsync(testingApkFile), cancellationToken);
             }
             catch (PackageInstallationException e)
             {
                 _logger.LogError(e, "can't uninstall package");
             }
 
-            packageManager.InstallPackage(testingApkFile, reinstall: false);
+            await packageManager.InstallPackageAsync(testingApkFile, reinstall: false, cancellationToken);
             _logger.LogInformation("Install androidTest application in directory: {temporaryFolder}",
                 temporaryFolder);
 
@@ -267,9 +277,11 @@ namespace AppsTester.Checker.Android
             _logger.LogInformation("Started testing of Android application on device {deviceData}", deviceData);
 
             await adbClient.ExecuteRemoteCommandAsync(
-                $"am instrument -r -w {await _apkReader.ReadPackageNameAsync(testingApkFile)}",
-                deviceData,
-                consoleOutputReceiver, Encoding.UTF8, processingContext.CancellationToken);
+                command: $"am instrument -r -w {await _apkReader.ReadPackageNameAsync(testingApkFile)}",
+                device: deviceData,
+                receiver: consoleOutputReceiver,
+                encoding: Encoding.UTF8,
+                cancellationToken);
 
             _logger.LogInformation("Completed testing of Android application on device {deviceData}", deviceData);
 
