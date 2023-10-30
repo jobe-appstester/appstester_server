@@ -33,6 +33,10 @@ namespace AppsTester.Checker.Android
                     services.AddOptions<AdbOptions>()
                         .Bind(builder.Configuration.GetSection("Adb"))
                         .ValidateDataAnnotations();
+
+                    services.AddOptions<SubmissionsOptions>()
+                        .Bind(builder.Configuration.GetSection("Submissions"));
+
                     services.AddSingleton<IAdbClientProvider, AdbClientProvider>();
                     services.AddTransient<IApkReader, ApkReader>();
 
@@ -43,6 +47,7 @@ namespace AppsTester.Checker.Android
                     services.AddOptions<ControllerOptions>()
                         .Bind(builder.Configuration.GetSection("Controller"))
                         .ValidateDataAnnotations();
+
                     services.AddSubmissionChecker<AndroidApplicationSubmissionChecker>(
                         checkerSystemName: "android",
                         parallelExecutions: 6);

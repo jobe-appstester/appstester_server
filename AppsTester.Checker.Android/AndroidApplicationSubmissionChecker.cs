@@ -21,6 +21,7 @@ using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Extensions.Logging;
 using AdvancedSharpAdbClient;
 using AdvancedSharpAdbClient.DeviceCommands;
+using Microsoft.Extensions.Options;
 
 namespace AppsTester.Checker.Android
 {
@@ -28,7 +29,7 @@ namespace AppsTester.Checker.Android
     internal class AndroidApplicationSubmissionChecker : SubmissionChecker
     {
         private const int SimultaneousTestsCount = 3;
-        private readonly TimeSpan _testTimeout = TimeSpan.FromMinutes(10);
+        private readonly TimeSpan _defaultTestTimeout = TimeSpan.FromMinutes(10);
 
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IGradleRunner _gradleRunner;
@@ -37,6 +38,7 @@ namespace AppsTester.Checker.Android
         private readonly ITemporaryFolderProvider _temporaryFolderProvider;
         private readonly IReservedDevicesProvider _reservedDevicesProvider;
         private readonly IApkReader _apkReader;
+        private readonly IOptionsSnapshot<SubmissionsOptions> _submissionsOptions;
 
         private readonly ISubmissionFilesProvider _filesProvider;
         private readonly ISubmissionStatusSetter _submissionStatusSetter;
@@ -51,7 +53,8 @@ namespace AppsTester.Checker.Android
             ISubmissionFilesProvider filesProvider,
             IReservedDevicesProvider reservedDevicesProvider,
             ISubmissionProcessingLogger logger,
-            IApkReader apkReader)
+            IApkReader apkReader,
+            IOptionsSnapshot<SubmissionsOptions> submissionsOptions)
             : base(submissionResultSetter)
         {
             _adbClientProvider = adbClientProvider;
@@ -63,6 +66,7 @@ namespace AppsTester.Checker.Android
             _reservedDevicesProvider = reservedDevicesProvider;
             _logger = logger;
             _apkReader = apkReader;
+            _submissionsOptions = submissionsOptions;
         }
 
         protected override async Task<object> CheckSubmissionCoreAsync(SubmissionProcessingContext processingContext)
@@ -128,7 +132,8 @@ namespace AppsTester.Checker.Android
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
             var testTimeoutCancellationTokenSource = new CancellationTokenSource();
-            testTimeoutCancellationTokenSource.CancelAfter(_testTimeout);
+            testTimeoutCancellationTokenSource
+                .CancelAfter(delay: _submissionsOptions.Value.TestTimeout ?? _defaultTestTimeout);
 
             var testCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
                 testTimeoutCancellationTokenSource.Token,
