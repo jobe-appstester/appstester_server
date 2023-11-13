@@ -30,6 +30,7 @@ namespace AppsTester.Checker.Android
     {
         private const int SimultaneousTestsCount = 3;
         private readonly TimeSpan _defaultTestTimeout = TimeSpan.FromMinutes(10);
+        private readonly TimeSpan _defaultInstallTimeout = TimeSpan.FromMinutes(1);
 
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IGradleRunner _gradleRunner;
@@ -131,18 +132,14 @@ namespace AppsTester.Checker.Android
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
-            var testTimeoutCancellationTokenSource = new CancellationTokenSource();
-            testTimeoutCancellationTokenSource
-                .CancelAfter(delay: _submissionsOptions.Value.TestTimeout ?? _defaultTestTimeout);
-
-            var testCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
-                testTimeoutCancellationTokenSource.Token,
-                processingContext.CancellationToken);
+            var testCancellationToken = CreateCancellationTokenWithTimeout(
+                timeout: _submissionsOptions.Value.TestTimeout ?? _defaultTestTimeout,
+                cancellationToken: processingContext.CancellationToken);
 
             var tests =
                 Enumerable
                     .Range(0, SimultaneousTestsCount)
-                    .Select(_ => TestApplicationAsync(temporaryFolder, testCancellationTokenSource.Token));
+                    .Select(_ => TestApplicationAsync(temporaryFolder, testCancellationToken));
 
             var testResults = await Task.WhenAll(tests);
             return testResults.OrderByDescending(testResult => testResult.Grade).First();
@@ -248,30 +245,34 @@ namespace AppsTester.Checker.Android
 
             var applicationApkFile = Path.Join(baseApksPath, "debug", "app-debug.apk");
 
+            var installCancellationToken = CreateCancellationTokenWithTimeout(
+                timeout: _submissionsOptions.Value.InstallTimeout ?? _defaultInstallTimeout,
+                cancellationToken);
+
             try
             {
-                await packageManager.UninstallPackageAsync(await _apkReader.ReadPackageNameAsync(applicationApkFile), cancellationToken);
+                await packageManager.UninstallPackageAsync(await _apkReader.ReadPackageNameAsync(applicationApkFile), installCancellationToken);
             }
             catch (PackageInstallationException e)
             {
                 _logger.LogError(e, "can't uninstall package");
             }
 
-            await packageManager.InstallPackageAsync(applicationApkFile, reinstall: false, cancellationToken);
+            await packageManager.InstallPackageAsync(applicationApkFile, reinstall: false, installCancellationToken);
             _logger.LogInformation("Install debug application in directory: {temporaryFolder}", temporaryFolder);
 
             var testingApkFile = Path.Join(baseApksPath, "androidTest", "debug", "app-debug-androidTest.apk");
 
             try
             {
-                await packageManager.UninstallPackageAsync(await _apkReader.ReadPackageNameAsync(testingApkFile), cancellationToken);
+                await packageManager.UninstallPackageAsync(await _apkReader.ReadPackageNameAsync(testingApkFile), installCancellationToken);
             }
             catch (PackageInstallationException e)
             {
                 _logger.LogError(e, "can't uninstall package");
             }
 
-            await packageManager.InstallPackageAsync(testingApkFile, reinstall: false, cancellationToken);
+            await packageManager.InstallPackageAsync(testingApkFile, reinstall: false, installCancellationToken);
             _logger.LogInformation("Install androidTest application in directory: {temporaryFolder}",
                 temporaryFolder);
 
@@ -294,6 +295,18 @@ namespace AppsTester.Checker.Android
 
             var result = _instrumentationsOutputParser.Parse(consoleOutput);
             return result.GetResult<CheckResult>();
+        }
+
+        private static CancellationToken CreateCancellationTokenWithTimeout(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            var timeoutCancellationTokenSource = new CancellationTokenSource();
+            timeoutCancellationTokenSource.CancelAfter(delay: timeout);
+
+            var finalCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
+                timeoutCancellationTokenSource.Token,
+                cancellationToken);
+
+            return finalCancellationTokenSource.Token;
         }
     }
 }
