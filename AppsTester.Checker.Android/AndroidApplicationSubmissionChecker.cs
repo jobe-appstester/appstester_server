@@ -149,6 +149,11 @@ namespace AppsTester.Checker.Android
             ITemporaryFolder temporaryFolder,
             string zipFileParameterName)
         {
+            _logger.LogInformation(
+                "Try to extract {zipFileParametername} into directory: {temporaryFolder}",
+                zipFileParameterName,
+                temporaryFolder);
+
             using var _ = _logger.BeginScope(
                 new Dictionary<string, string> { { "extractingFile", zipFileParameterName } });
 
