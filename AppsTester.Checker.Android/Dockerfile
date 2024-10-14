@@ -6,6 +6,10 @@ COPY . .
 WORKDIR "/src/AppsTester.Checker.Android"
 RUN dotnet build "AppsTester.Checker.Android.csproj" -c Release -o /app/build
 RUN dotnet publish "AppsTester.Checker.Android.csproj" -c Release -o /app/publish
+RUN dotnet tool install --tool-path /tools dotnet-trace \
+ && dotnet tool install --tool-path /tools dotnet-counters \
+ && dotnet tool install --tool-path /tools dotnet-dump \
+ && dotnet tool install --tool-path /tools dotnet-gcdump
 
 FROM sdmitrij/aspx:6.0 AS final
 RUN apt-get update && apt-get upgrade -y
@@ -20,6 +24,8 @@ RUN mkdir "$ANDROID_HOME" .android \
     && unzip sdk.zip \
     && mv cmdline-tools tools \
     && yes | $ANDROID_HOME/cmdline-tools/tools/bin/sdkmanager --licenses
+WORKDIR /tools
+COPY --from=build /tools .
 WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 80
