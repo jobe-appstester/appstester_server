@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using AppsTester.Checker.Android.Adb;
 using AppsTester.Checker.Android.Apk;
@@ -18,8 +19,9 @@ using AppsTester.Shared.Files;
 using AppsTester.Shared.SubmissionChecker;
 using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Extensions.Logging;
-using SharpAdbClient;
-using SharpAdbClient.DeviceCommands;
+using AdvancedSharpAdbClient;
+using AdvancedSharpAdbClient.DeviceCommands;
+using Microsoft.Extensions.Options;
 
 namespace AppsTester.Checker.Android
 {
@@ -27,6 +29,9 @@ namespace AppsTester.Checker.Android
     internal class AndroidApplicationSubmissionChecker : SubmissionChecker
     {
         private const int SimultaneousTestsCount = 3;
+        private readonly TimeSpan _defaultTestTimeout = TimeSpan.FromMinutes(10);
+        private readonly TimeSpan _defaultInstallTimeout = TimeSpan.FromMinutes(1);
+
         private readonly IAdbClientProvider _adbClientProvider;
         private readonly IGradleRunner _gradleRunner;
         private readonly IInstrumentationsOutputParser _instrumentationsOutputParser;
@@ -34,6 +39,7 @@ namespace AppsTester.Checker.Android
         private readonly ITemporaryFolderProvider _temporaryFolderProvider;
         private readonly IReservedDevicesProvider _reservedDevicesProvider;
         private readonly IApkReader _apkReader;
+        private readonly IOptionsSnapshot<SubmissionsOptions> _submissionsOptions;
 
         private readonly ISubmissionFilesProvider _filesProvider;
         private readonly ISubmissionStatusSetter _submissionStatusSetter;
@@ -48,7 +54,8 @@ namespace AppsTester.Checker.Android
             ISubmissionFilesProvider filesProvider,
             IReservedDevicesProvider reservedDevicesProvider,
             ISubmissionProcessingLogger logger,
-            IApkReader apkReader)
+            IApkReader apkReader,
+            IOptionsSnapshot<SubmissionsOptions> submissionsOptions)
             : base(submissionResultSetter)
         {
             _adbClientProvider = adbClientProvider;
@@ -60,6 +67,7 @@ namespace AppsTester.Checker.Android
             _reservedDevicesProvider = reservedDevicesProvider;
             _logger = logger;
             _apkReader = apkReader;
+            _submissionsOptions = submissionsOptions;
         }
 
         protected override async Task<object> CheckSubmissionCoreAsync(SubmissionProcessingContext processingContext)
@@ -124,10 +132,14 @@ namespace AppsTester.Checker.Android
 
             await _submissionStatusSetter.SetStatusAsync(new ProcessingStatus("install_application"));
 
+            var testCancellationToken = CreateCancellationTokenWithTimeout(
+                timeout: _submissionsOptions.Value.TestTimeout ?? _defaultTestTimeout,
+                cancellationToken: processingContext.CancellationToken);
+
             var tests =
                 Enumerable
                     .Range(0, SimultaneousTestsCount)
-                    .Select(_ => TestApplication(processingContext, temporaryFolder));
+                    .Select(_ => TestApplicationAsync(temporaryFolder, testCancellationToken));
 
             var testResults = await Task.WhenAll(tests);
             return testResults.OrderByDescending(testResult => testResult.Grade).First();
@@ -137,6 +149,11 @@ namespace AppsTester.Checker.Android
             ITemporaryFolder temporaryFolder,
             string zipFileParameterName)
         {
+            _logger.LogInformation(
+                "Try to extract {zipFileParametername} into directory: {temporaryFolder}",
+                zipFileParameterName,
+                temporaryFolder);
+
             using var _ = _logger.BeginScope(
                 new Dictionary<string, string> { { "extractingFile", zipFileParameterName } });
 
@@ -218,13 +235,13 @@ namespace AppsTester.Checker.Android
                 zipFileParameterName, temporaryFolder);
         }
 
-        private async Task<CheckResult> TestApplication(
-            SubmissionProcessingContext processingContext,
-            ITemporaryFolder temporaryFolder)
+        private async Task<CheckResult> TestApplicationAsync(
+            ITemporaryFolder temporaryFolder,
+            CancellationToken cancellationToken)
         {
             var adbClient = _adbClientProvider.GetAdbClient();
 
-            using var device = await _reservedDevicesProvider.ReserveDeviceAsync(processingContext.CancellationToken);
+            using var device = await _reservedDevicesProvider.ReserveDeviceAsync(cancellationToken);
             var deviceData = device.DeviceData;
 
             var packageManager = new PackageManager(adbClient, deviceData);
@@ -233,30 +250,34 @@ namespace AppsTester.Checker.Android
 
             var applicationApkFile = Path.Join(baseApksPath, "debug", "app-debug.apk");
 
+            var installCancellationToken = CreateCancellationTokenWithTimeout(
+                timeout: _submissionsOptions.Value.InstallTimeout ?? _defaultInstallTimeout,
+                cancellationToken);
+
             try
             {
-                packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(applicationApkFile));
+                await packageManager.UninstallPackageAsync(await _apkReader.ReadPackageNameAsync(applicationApkFile), installCancellationToken);
             }
             catch (PackageInstallationException e)
             {
                 _logger.LogError(e, "can't uninstall package");
             }
 
-            packageManager.InstallPackage(applicationApkFile, reinstall: false);
+            await packageManager.InstallPackageAsync(applicationApkFile, reinstall: false, installCancellationToken);
             _logger.LogInformation("Install debug application in directory: {temporaryFolder}", temporaryFolder);
 
             var testingApkFile = Path.Join(baseApksPath, "androidTest", "debug", "app-debug-androidTest.apk");
 
             try
             {
-                packageManager.UninstallPackage(await _apkReader.ReadPackageNameAsync(testingApkFile));
+                await packageManager.UninstallPackageAsync(await _apkReader.ReadPackageNameAsync(testingApkFile), installCancellationToken);
             }
             catch (PackageInstallationException e)
             {
                 _logger.LogError(e, "can't uninstall package");
             }
 
-            packageManager.InstallPackage(testingApkFile, reinstall: false);
+            await packageManager.InstallPackageAsync(testingApkFile, reinstall: false, installCancellationToken);
             _logger.LogInformation("Install androidTest application in directory: {temporaryFolder}",
                 temporaryFolder);
 
@@ -267,9 +288,11 @@ namespace AppsTester.Checker.Android
             _logger.LogInformation("Started testing of Android application on device {deviceData}", deviceData);
 
             await adbClient.ExecuteRemoteCommandAsync(
-                $"am instrument -r -w {await _apkReader.ReadPackageNameAsync(testingApkFile)}",
-                deviceData,
-                consoleOutputReceiver, Encoding.UTF8, processingContext.CancellationToken);
+                command: $"am instrument -r -w {await _apkReader.ReadPackageNameAsync(testingApkFile)}",
+                device: deviceData,
+                receiver: consoleOutputReceiver,
+                encoding: Encoding.UTF8,
+                cancellationToken);
 
             _logger.LogInformation("Completed testing of Android application on device {deviceData}", deviceData);
 
@@ -277,6 +300,18 @@ namespace AppsTester.Checker.Android
 
             var result = _instrumentationsOutputParser.Parse(consoleOutput);
             return result.GetResult<CheckResult>();
+        }
+
+        private static CancellationToken CreateCancellationTokenWithTimeout(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            var timeoutCancellationTokenSource = new CancellationTokenSource();
+            timeoutCancellationTokenSource.CancelAfter(delay: timeout);
+
+            var finalCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
+                timeoutCancellationTokenSource.Token,
+                cancellationToken);
+
+            return finalCancellationTokenSource.Token;
         }
     }
 }

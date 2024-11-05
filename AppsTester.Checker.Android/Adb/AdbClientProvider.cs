@@ -6,7 +6,7 @@ using AppsTester.Checker.Android.Metrics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SharpAdbClient;
+using AdvancedSharpAdbClient;
 
 namespace AppsTester.Checker.Android.Adb
 {
