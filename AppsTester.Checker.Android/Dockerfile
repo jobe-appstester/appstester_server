@@ -15,7 +15,7 @@ FROM sdmitrij/aspx:6.0 AS final
 RUN apt-get update && apt-get upgrade -y
 ENV SDK_URL="https://dl.google.com/android/repository/commandlinetools-linux-6858069_latest.zip" \
     ANDROID_HOME="/usr/local/android-sdk"
-RUN apt-get install -y curl wget unzip openjdk-11-jdk
+RUN apt-get install -y curl wget unzip openjdk-17-jdk
 RUN mkdir "$ANDROID_HOME" .android \
     && cd "$ANDROID_HOME" \
     && mkdir cmdline-tools \
